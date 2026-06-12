@@ -1,0 +1,11 @@
+hockey-ui/node_modules/
+hockey-ui/dist/
+
+ # Java / Backend build files 
+hockey/target/ hockey/.gradle/ 
+hockey/build/ 
+
+# IDE  specific files 
+.DS_Store
+.idea/
+.vscode/
