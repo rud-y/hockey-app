@@ -1,30 +1,38 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
+import Team from './components/Team'
+import { type TeamProps } from './interfaces/teamProps'
 
 function App() {
-  const [count, setCount] = useState(0);
+  const [teams, setTeams] = useState<TeamProps[]>([])
+
+  useEffect(() => {
+    fetch('http://localhost:8080/teams/')
+      .then((res) => res.json())
+      .then((data: TeamProps[]) => {
+        setTeams(data)
+        console.log('TEAMS-- ', data)
+      })
+      .catch((err) => console.error('Error fetching teams:', err))
+  }, [])
 
   return (
-    <>
-      <section id="center">
-     
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+   <>
+    <section id="center">
+     <h1>Ice Hockey League App</h1>
+     {teams.map((team) => (
+       <Team
+         key={team.id ?? team.shortName}
+         id={team.id}
+         name={team.name}
+         shortName={team.shortName}
+         players={team.players ?? []}
+       />
+     ))}
+    </section>
 
-      <div className="ticks"></div>
-    </>
+     <div className="ticks"></div>
+   </>
   )
 }
 

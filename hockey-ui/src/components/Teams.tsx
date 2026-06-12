@@ -1,17 +1,34 @@
+import { useEffect, useState } from "react";
 import { type TeamProps } from "../interfaces/teamProps";
 
-const Team: React.FC<TeamProps> = ({ name, shortName, players }) => {
+const Team: React.FC<TeamProps> = () => {
+  const [teams, setTeams] = useState<TeamProps[]>([]);
+
+
+  useEffect(() => {
+   try {
+    fetch("http://localhost:8080/teams/")
+      .then((res) => res.json())
+      .then((data) => setTeams(data.data || data))
+   }
+     catch(err) {
+      console.error("Error fetching teams: ", err)
+     }
+}, [])
+   console.log("TEAMS-- ", teams);
+
   return (
     <div className="team-card" style={styles.card}>
       <div style={styles.header}>
-        <h2 style={styles.name}>{name}</h2>
-        <span style={styles.badge}>{shortName}</span>
+       <h1>TEAMS</h1>
       </div>
-      {players.length === 0 ? (
-        <p style={styles.emptyText}>No players listed yet.</p>
-      ) : (
-        <p style={styles.emptyText}>{players.length} player(s)</p>
-      )}
+        {teams && teams.map((team) => (
+          <>
+            <h2 style={styles.name}>{team?.name}</h2>
+            <h4>{team.shortName}</h4>
+          </>
+        ))}
+
       <hr style={styles.divider} />
     </div>
   );
