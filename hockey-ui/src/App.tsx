@@ -1,38 +1,47 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import './App.css'
-import Team from './components/Team'
-import { type TeamProps } from './interfaces/teamProps'
+import LeagueTable from './components/LeagueTable'
+import TeamForm from './components/TeamForm'
+import { API_BASE_URL, LEAGUE_CONFIG } from './constants/api'
+import { type TableRowProps } from './interfaces/tableRowProps'
 
 function App() {
-  const [teams, setTeams] = useState<TeamProps[]>([])
+  const [standings, setStandings] = useState<TableRowProps[]>([])
 
-  useEffect(() => {
-    fetch('http://localhost:8080/teams/')
-      .then((res) => res.json())
-      .then((data: TeamProps[]) => {
-        setTeams(data)
-        console.log('TEAMS-- ', data)
+  const loadStandings = useCallback(() => {
+    const params = new URLSearchParams({
+      competitionType: LEAGUE_CONFIG.competitionType,
+      seasonYear: LEAGUE_CONFIG.seasonYear,
+    })
+
+    fetch(`${API_BASE_URL}/league-tables?${params}`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error('Failed to load league table')
+        }
+        return res.json()
       })
-      .catch((err) => console.error('Error fetching teams:', err))
+      .then((data: TableRowProps[]) => {
+        setStandings(data)
+        console.log('STANDINGS-- ', data)
+      })
+      .catch((err) => console.error('Error fetching standings:', err))
   }, [])
 
-  return (
-   <>
-    <section id="center">
-     <h1>Ice Hockey League App</h1>
-     {teams.map((team) => (
-       <Team
-         key={team.id ?? team.shortName}
-         id={team.id}
-         name={team.name}
-         shortName={team.shortName}
-         players={team.players ?? []}
-       />
-     ))}
-    </section>
+  useEffect(() => {
+    loadStandings()
+  }, [loadStandings])
 
-     <div className="ticks"></div>
-   </>
+  return (
+    <>
+      <section id="center">
+        <h1>Ice Hockey League App</h1>
+        <TeamForm onTeamCreated={loadStandings} />
+        <LeagueTable rows={standings} />
+      </section>
+
+      <div className="ticks"></div>
+    </>
   )
 }
 

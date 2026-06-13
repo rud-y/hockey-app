@@ -1,0 +1,173 @@
+import { useState, type FormEvent } from 'react'
+import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
+
+interface TeamFormProps {
+  onTeamCreated: () => void
+}
+
+const EMPTY_PLAYERS = ['', '', '', '', '']
+
+const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated }) => {
+  const [name, setName] = useState('')
+  const [shortName, setShortName] = useState('')
+  const [playerNames, setPlayerNames] = useState<string[]>(EMPTY_PLAYERS)
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handlePlayerChange = (index: number, value: string) => {
+    setPlayerNames((prev) => prev.map((player, i) => (i === index ? value : player)))
+  }
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    setError(null)
+
+    if (!name.trim() || !shortName.trim()) {
+      setError('Team name and short name are required.')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/teams`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          shortName: shortName.trim().toUpperCase(),
+          playerNames: playerNames.map((player) => player.trim()).filter(Boolean),
+          competitionType: LEAGUE_CONFIG.competitionType,
+          seasonYear: LEAGUE_CONFIG.seasonYear,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create team.')
+      }
+
+      setName('')
+      setShortName('')
+      setPlayerNames(EMPTY_PLAYERS)
+      onTeamCreated()
+    } catch (err) {
+      console.error('Error creating team:', err)
+      setError('Could not create team. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={styles.form}>
+      <h2 style={styles.title}>Register a Team</h2>
+
+      <label style={styles.label}>
+        Team name
+        <input
+          style={styles.input}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="Toronto Maple Leafs"
+        />
+      </label>
+
+      <label style={styles.label}>
+        Short name
+        <input
+          style={styles.input}
+          value={shortName}
+          onChange={(event) => setShortName(event.target.value)}
+          placeholder="TOR"
+          maxLength={5}
+        />
+      </label>
+
+      <fieldset style={styles.fieldset}>
+        <legend style={styles.legend}>Players (5)</legend>
+        {playerNames.map((playerName, index) => (
+          <label key={index} style={styles.label}>
+            Player {index + 1}
+            <input
+              style={styles.input}
+              value={playerName}
+              onChange={(event) => handlePlayerChange(index, event.target.value)}
+              placeholder={`Player ${index + 1} name`}
+            />
+          </label>
+        ))}
+      </fieldset>
+
+      {error && <p style={styles.error}>{error}</p>}
+
+      <button type="submit" style={styles.button} disabled={isSubmitting}>
+        {isSubmitting ? 'Creating...' : 'Add Team to League Table'}
+      </button>
+    </form>
+  )
+}
+
+const styles = {
+  form: {
+    width: '100%',
+    maxWidth: '520px',
+    backgroundColor: '#fff',
+    border: '1px solid #e0e0e0',
+    borderRadius: '12px',
+    padding: '24px',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+    fontFamily: 'system-ui, sans-serif',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '14px',
+  },
+  title: {
+    margin: 0,
+    fontSize: '1.4rem',
+    color: '#1a1a1a',
+  },
+  fieldset: {
+    border: '1px solid #eee',
+    borderRadius: '8px',
+    padding: '16px',
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '10px',
+  },
+  legend: {
+    padding: '0 6px',
+    color: '#555',
+    fontWeight: 600,
+  },
+  label: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '6px',
+    fontSize: '0.9rem',
+    color: '#444',
+  },
+  input: {
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: '1px solid #d0d0d0',
+    fontSize: '1rem',
+  },
+  button: {
+    marginTop: '8px',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    border: 'none',
+    backgroundColor: '#3b82f6',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  error: {
+    margin: 0,
+    color: '#b91c1c',
+    fontSize: '0.9rem',
+  },
+}
+
+export default TeamForm

@@ -1,0 +1,108 @@
+import { type TableRowProps } from '../interfaces/tableRowProps'
+
+interface LeagueTableProps {
+  rows: TableRowProps[]
+}
+
+const formatStreak = (row: TableRowProps) => {
+  if (!row.streak || row.streakCount === 0) {
+    return '-'
+  }
+
+  return `${row.streak}${row.streakCount}`
+}
+
+const LeagueTable: React.FC<LeagueTableProps> = ({ rows }) => {
+  return (
+    <div style={styles.wrapper}>
+      <h2 style={styles.title}>League Table</h2>
+
+      {rows.length === 0 ? (
+        <p style={styles.empty}>No teams in the league table yet.</p>
+      ) : (
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.th}>Team</th>
+              <th style={styles.th}>GP</th>
+              <th style={styles.th}>W</th>
+              <th style={styles.th}>L</th>
+              <th style={styles.th}>OTL</th>
+              <th style={styles.th}>PTS</th>
+              <th style={styles.th}>Streak</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.id ?? row.team.shortName}>
+                <td style={styles.td}>
+                  <strong>{row.team.name}</strong>
+                  <span style={styles.shortName}> ({row.team.shortName})</span>
+                </td>
+                <td style={styles.tdCenter}>{row.gamesPlayed}</td>
+                <td style={styles.tdCenter}>{row.wins}</td>
+                <td style={styles.tdCenter}>{row.losses}</td>
+                <td style={styles.tdCenter}>{row.otLosses}</td>
+                <td style={styles.tdCenter}>{row.points}</td>
+                <td style={styles.tdCenter}>{formatStreak(row)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+}
+
+const styles = {
+  wrapper: {
+    width: '100%',
+    maxWidth: '900px',
+    backgroundColor: '#fff',
+    border: '1px solid #e0e0e0',
+    borderRadius: '12px',
+    padding: '24px',
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)',
+    fontFamily: 'system-ui, sans-serif',
+  },
+  title: {
+    margin: '0 0 16px',
+    fontSize: '1.4rem',
+    color: '#1a1a1a',
+  },
+  empty: {
+    margin: 0,
+    color: '#777',
+    fontStyle: 'italic' as const,
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+  },
+  th: {
+    textAlign: 'left' as const,
+    padding: '10px 12px',
+    borderBottom: '2px solid #e5e7eb',
+    fontSize: '0.85rem',
+    color: '#555',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.04em',
+  },
+  td: {
+    padding: '12px',
+    borderBottom: '1px solid #f0f0f0',
+    color: '#1a1a1a',
+  },
+  tdCenter: {
+    padding: '12px',
+    borderBottom: '1px solid #f0f0f0',
+    textAlign: 'center' as const,
+    color: '#1a1a1a',
+  },
+  shortName: {
+    color: '#6b7280',
+    fontWeight: 400,
+  },
+}
+
+export default LeagueTable
