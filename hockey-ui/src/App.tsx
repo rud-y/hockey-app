@@ -36,8 +36,8 @@ function App() {
     <>
       <section id="center">
         <h1>Ice Hockey League App</h1>
-        <TeamForm onTeamCreated={loadStandings} />
-        <LeagueTable rows={standings} />
+        <TeamForm onTeamCreated={loadStandings} existingRows={standings} />
+        <LeagueTable rows={standings} onRowDeleted={loadStandings} />
       </section>
 
       <div className="ticks"></div>

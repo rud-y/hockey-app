@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react'
 import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
+import { type TableRowProps } from '../interfaces/tableRowProps'
 
 interface TeamFormProps {
   onTeamCreated: () => void
+  existingRows: TableRowProps[]
 }
 
 const EMPTY_PLAYERS = ['', '', '', '', '']
 
-const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated }) => {
+const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated, existingRows }) => {
   const [name, setName] = useState('')
   const [shortName, setShortName] = useState('')
   const [playerNames, setPlayerNames] = useState<string[]>(EMPTY_PLAYERS)
@@ -27,6 +29,19 @@ const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated }) => {
       return
     }
 
+    const normalizedName = name.trim().toLowerCase()
+    const normalizedShortName = shortName.trim().toLowerCase()
+    const isDuplicate = existingRows.some(
+      (row) =>
+        row.team.name.toLowerCase() === normalizedName ||
+        row.team.shortName.toLowerCase() === normalizedShortName,
+    )
+
+    if (isDuplicate) {
+      setError('This team is already in the league table.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -43,7 +58,8 @@ const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated }) => {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create team.')
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.message ?? 'Failed to create team.')
       }
 
       setName('')
@@ -52,7 +68,7 @@ const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated }) => {
       onTeamCreated()
     } catch (err) {
       console.error('Error creating team:', err)
-      setError('Could not create team. Please try again.')
+      setError(err instanceof Error ? err.message : 'Could not create team. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

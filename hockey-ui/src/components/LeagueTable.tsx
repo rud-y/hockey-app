@@ -1,7 +1,10 @@
+import { useState } from 'react'
+import { API_BASE_URL } from '../constants/api'
 import { type TableRowProps } from '../interfaces/tableRowProps'
 
 interface LeagueTableProps {
   rows: TableRowProps[]
+  onRowDeleted: () => void
 }
 
 const formatStreak = (row: TableRowProps) => {
@@ -12,10 +15,43 @@ const formatStreak = (row: TableRowProps) => {
   return `${row.streak}${row.streakCount}`
 }
 
-const LeagueTable: React.FC<LeagueTableProps> = ({ rows }) => {
+const LeagueTable: React.FC<LeagueTableProps> = ({ rows, onRowDeleted }) => {
+  const [deletingRowId, setDeletingRowId] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleDelete = async (row: TableRowProps) => {
+    if (!row.id) {
+      setError('Cannot delete this row because it has no id.')
+      return
+    }
+
+    setError(null)
+    setDeletingRowId(row.id)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/league-tables/rows/${row.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.message ?? 'Failed to delete team.')
+      }
+
+      onRowDeleted()
+    } catch (err) {
+      console.error('Error deleting team:', err)
+      setError(err instanceof Error ? err.message : 'Could not delete team.')
+    } finally {
+      setDeletingRowId(null)
+    }
+  }
+
   return (
     <div style={styles.wrapper}>
       <h2 style={styles.title}>League Table</h2>
+
+      {error && <p style={styles.error}>{error}</p>}
 
       {rows.length === 0 ? (
         <p style={styles.empty}>No teams in the league table yet.</p>
@@ -30,6 +66,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ rows }) => {
               <th style={styles.th}>OTL</th>
               <th style={styles.th}>PTS</th>
               <th style={styles.th}>Streak</th>
+              <th style={styles.thAction} aria-label="Delete team" />
             </tr>
           </thead>
           <tbody>
@@ -45,6 +82,18 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ rows }) => {
                 <td style={styles.tdCenter}>{row.otLosses}</td>
                 <td style={styles.tdCenter}>{row.points}</td>
                 <td style={styles.tdCenter}>{formatStreak(row)}</td>
+                <td style={styles.tdAction}>
+                  <button
+                    type="button"
+                    style={styles.deleteButton}
+                    onClick={() => handleDelete(row)}
+                    disabled={deletingRowId === row.id}
+                    aria-label={`Delete ${row.team.name}`}
+                    title={`Delete ${row.team.name}`}
+                  >
+                    {deletingRowId === row.id ? '…' : '×'}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -70,6 +119,11 @@ const styles = {
     fontSize: '1.4rem',
     color: '#1a1a1a',
   },
+  error: {
+    margin: '0 0 12px',
+    color: '#b91c1c',
+    fontSize: '0.9rem',
+  },
   empty: {
     margin: 0,
     color: '#777',
@@ -88,6 +142,11 @@ const styles = {
     textTransform: 'uppercase' as const,
     letterSpacing: '0.04em',
   },
+  thAction: {
+    width: '48px',
+    padding: '10px 12px',
+    borderBottom: '2px solid #e5e7eb',
+  },
   td: {
     padding: '12px',
     borderBottom: '1px solid #f0f0f0',
@@ -98,6 +157,23 @@ const styles = {
     borderBottom: '1px solid #f0f0f0',
     textAlign: 'center' as const,
     color: '#1a1a1a',
+  },
+  tdAction: {
+    padding: '12px',
+    borderBottom: '1px solid #f0f0f0',
+    textAlign: 'center' as const,
+  },
+  deleteButton: {
+    width: '28px',
+    height: '28px',
+    border: '1px solid #fecaca',
+    borderRadius: '6px',
+    backgroundColor: '#fff',
+    color: '#b91c1c',
+    fontSize: '1.1rem',
+    lineHeight: 1,
+    cursor: 'pointer',
+    padding: 0,
   },
   shortName: {
     color: '#6b7280',
