@@ -56,16 +56,16 @@ public class HockeyApplication {
                         islRow.setLosses(3);
                         islRow.setPoints(4);
 
-                        TableRow vanRow = new TableRow();
-                        islRow.setTeam(van);
-                        islRow.setLeagueTable(regularSeason);
-                        islRow.setGamesPlayed(5);
-                        islRow.setWins(2);
-                        islRow.setLosses(3);
-                        islRow.setPoints(4);
+                        // TableRow vanRow = new TableRow();
+                        // islRow.setTeam(van);
+                        // islRow.setLeagueTable(regularSeason);
+                        // islRow.setGamesPlayed(5);
+                        // islRow.setWins(2);
+                        // islRow.setLosses(3);
+                        // islRow.setPoints(4);
 
-                        regularSeason.addRow(torRow);
-                        regularSeason.addRow(islRow);
+                        // regularSeason.addRow(torRow);
+                        // regularSeason.addRow(islRow);
 
                         leagueTableRepository.save(regularSeason);
 

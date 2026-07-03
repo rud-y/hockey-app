@@ -1,20 +1,32 @@
 import { useState, type FormEvent } from 'react'
 import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
 import { type TableRowProps } from '../interfaces/tableRowProps'
+import { MAX_TEAMS } from '../utils/matchSimulation'
 
 interface TeamFormProps {
   onTeamCreated: () => void
   existingRows: TableRowProps[]
+  fixturesGenerated: boolean
+  onFixturesGenerated: () => void
 }
 
 const EMPTY_PLAYERS = ['', '', '', '', '']
 
-const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated, existingRows }) => {
+const TeamForm: React.FC<TeamFormProps> = ({
+  onTeamCreated,
+  existingRows,
+  fixturesGenerated,
+  onFixturesGenerated,
+}) => {
   const [name, setName] = useState('')
   const [shortName, setShortName] = useState('')
   const [playerNames, setPlayerNames] = useState<string[]>(EMPTY_PLAYERS)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isGeneratingFixtures, setIsGeneratingFixtures] = useState(false)
+
+  const teamLimitReached = existingRows.length >= MAX_TEAMS
+  const canGenerateFixtures = !fixturesGenerated && existingRows.length >= 2
 
   const handlePlayerChange = (index: number, value: string) => {
     setPlayerNames((prev) => prev.map((player, i) => (i === index ? value : player)))
@@ -26,6 +38,16 @@ const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated, existingRows }) => {
 
     if (!name.trim() || !shortName.trim()) {
       setError('Team name and short name are required.')
+      return
+    }
+
+    if (teamLimitReached) {
+      setError(`Maximum of ${MAX_TEAMS} teams allowed.`)
+      return
+    }
+
+    if (fixturesGenerated) {
+      setError('Fixtures have already been generated.')
       return
     }
 
@@ -74,6 +96,45 @@ const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated, existingRows }) => {
     }
   }
 
+  const handleGenerateFixtures = async () => {
+    setError(null)
+
+    if (existingRows.length < 2) {
+      setError('Add at least 2 teams before generating fixtures.')
+      return
+    }
+
+    if (fixturesGenerated) {
+      setError('Fixtures have already been generated.')
+      return
+    }
+
+    setIsGeneratingFixtures(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/fixtures/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          competitionType: LEAGUE_CONFIG.competitionType,
+          seasonYear: LEAGUE_CONFIG.seasonYear,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.message ?? 'Failed to generate fixtures.')
+      }
+
+      onFixturesGenerated()
+    } catch (err) {
+      console.error('Error generating fixtures:', err)
+      setError(err instanceof Error ? err.message : 'Could not generate fixtures.')
+    } finally {
+      setIsGeneratingFixtures(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} style={styles.form}>
       <h2 style={styles.title}>Register a Team</h2>
@@ -116,9 +177,22 @@ const TeamForm: React.FC<TeamFormProps> = ({ onTeamCreated, existingRows }) => {
 
       {error && <p style={styles.error}>{error}</p>}
 
-      <button type="submit" style={styles.button} disabled={isSubmitting}>
+      <button type="submit" style={styles.button} disabled={isSubmitting || fixturesGenerated || teamLimitReached}>
         {isSubmitting ? 'Creating...' : 'Add Team to League Table'}
       </button>
+
+      <button
+        type="button"
+        style={styles.generateButton}
+        disabled={!canGenerateFixtures || isGeneratingFixtures}
+        onClick={handleGenerateFixtures}
+      >
+        {isGeneratingFixtures ? 'Generating...' : 'Finish and Generate First Fixtures'}
+      </button>
+
+      {teamLimitReached && !fixturesGenerated && (
+        <p style={styles.helperText}>You have reached the maximum of {MAX_TEAMS} teams.</p>
+      )}
     </form>
   )
 }
@@ -178,6 +252,20 @@ const styles = {
     color: '#fff',
     fontWeight: 600,
     cursor: 'pointer',
+  },
+  generateButton: {
+    padding: '12px 16px',
+    borderRadius: '8px',
+    border: 'none',
+    backgroundColor: '#15803d',
+    color: '#fff',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  helperText: {
+    margin: 0,
+    color: '#64748b',
+    fontSize: '0.85rem',
   },
   error: {
     margin: 0,

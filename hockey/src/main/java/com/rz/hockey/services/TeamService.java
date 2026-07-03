@@ -6,7 +6,9 @@ import com.rz.hockey.entities.Player;
 import com.rz.hockey.entities.TableRow;
 import com.rz.hockey.entities.Team;
 import com.rz.hockey.repositories.LeagueTableRepository;
+import com.rz.hockey.repositories.MatchRepository;
 import com.rz.hockey.repositories.TeamRepository;
+import com.rz.hockey.services.MatchService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +20,15 @@ import java.util.List;
 public class TeamService {
     private final TeamRepository teamRepository;
     private final LeagueTableRepository leagueTableRepository;
+    private final MatchRepository matchRepository;
 
-    public TeamService(TeamRepository teamRepository, LeagueTableRepository leagueTableRepository) {
+    public TeamService(
+            TeamRepository teamRepository,
+            LeagueTableRepository leagueTableRepository,
+            MatchRepository matchRepository) {
         this.teamRepository = teamRepository;
         this.leagueTableRepository = leagueTableRepository;
+        this.matchRepository = matchRepository;
     }
 
     public List<Team> findAll() {
@@ -35,8 +42,20 @@ public class TeamService {
                 .orElseThrow(() -> new RuntimeException("League table not found for "
                         + request.competitionType() + " " + request.seasonYear()));
 
-        String normalizedName = request.name().trim();
+        String normalizedNam e = request.name().trim();
         String normalizedShortName = request.shortName().trim().toUpperCase();
+
+        if (matchRepository.existsByWeeklyFixture_LeagueTable_Id(leagueTable.getId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Cannot add teams after fixtures have been generated.");
+        }
+
+        if (leagueTable.getRows() != null && leagueTable.getRows().size() >= MatchService.MAX_TEAMS) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Maximum of 14 teams allowed.");
+        }
 
         if (leagueTable.getRows() != null) {
             boolean teamAlreadyInTable = leagueTable.getRows().stream()

@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 import java.util.List;
@@ -59,7 +60,12 @@ public class LeagueTableService {
                 .findByCompetitionTypeAndSeasonYear(competitionType, seasonYear)
                 .orElseThrow(() -> new RuntimeException("The league table was not found.."));
 
-        return table.getRows();
+        return table.getRows().stream()
+                .sorted(Comparator
+                        .comparingInt(TableRow::getPoints)
+                        .thenComparingInt(TableRow::getWins)
+                        .reversed())
+                .collect(Collectors.toList());
     }
 
     @Transactional
