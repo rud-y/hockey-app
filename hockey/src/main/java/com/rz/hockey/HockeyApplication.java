@@ -64,8 +64,8 @@ public class HockeyApplication {
                         // islRow.setLosses(3);
                         // islRow.setPoints(4);
 
-                        // regularSeason.addRow(torRow);
-                        // regularSeason.addRow(islRow);
+                         regularSeason.addRow(torRow);
+                         regularSeason.addRow(islRow);
 
                         leagueTableRepository.save(regularSeason);
 
