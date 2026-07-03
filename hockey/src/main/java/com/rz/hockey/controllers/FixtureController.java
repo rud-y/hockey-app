@@ -1,15 +1,12 @@
 package com.rz.hockey.controllers;
 
+import com.rz.hockey.dto.AdvanceWeekRequest;
+import com.rz.hockey.dto.FixturesResponse;
 import com.rz.hockey.dto.GenerateFixturesRequest;
-import com.rz.hockey.dto.MatchResultRequest;
-import com.rz.hockey.entities.Match;
-import com.rz.hockey.entities.WeeklyFixture;
 import com.rz.hockey.enums.CompetitionType;
 import com.rz.hockey.services.MatchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/fixtures")
@@ -23,15 +20,21 @@ public class FixtureController {
     }
 
     @GetMapping
-    public ResponseEntity<List<WeeklyFixture>> getFixtures(
+    public ResponseEntity<FixturesResponse> getFixtures(
             @RequestParam CompetitionType competitionType,
             @RequestParam String seasonYear) {
         return ResponseEntity.ok(matchService.getFixtures(competitionType, seasonYear));
     }
 
     @PostMapping("/generate")
-    public ResponseEntity<List<WeeklyFixture>> generateFixtures(@RequestBody GenerateFixturesRequest request) {
+    public ResponseEntity<FixturesResponse> generateFixtures(@RequestBody GenerateFixturesRequest request) {
         return ResponseEntity.ok(matchService.generateFixtures(
+                request.competitionType(), request.seasonYear()));
+    }
+
+    @PostMapping("/advance-week")
+    public ResponseEntity<FixturesResponse> advanceWeek(@RequestBody AdvanceWeekRequest request) {
+        return ResponseEntity.ok(matchService.advanceToNextWeek(
                 request.competitionType(), request.seasonYear()));
     }
 }

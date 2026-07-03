@@ -14,6 +14,7 @@ import {
 
 interface MatchCardProps {
   match: MatchProps
+  playable: boolean
   onMatchCompleted: () => void
 }
 
@@ -35,7 +36,7 @@ interface PeriodScores {
   otAway: number
 }
 
-const MatchCard: React.FC<MatchCardProps> = ({ match, onMatchCompleted }) => {
+const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted }) => {
   const [scores, setScores] = useState<PeriodScores>({
     home: [match.homeScorePeriod1, match.homeScorePeriod2, match.homeScorePeriod3],
     away: [match.awayScorePeriod1, match.awayScorePeriod2, match.awayScorePeriod3],
@@ -227,7 +228,8 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onMatchCompleted }) => {
   const periodRunning =
     phase === 'period1' || phase === 'period2' || phase === 'period3' || phase === 'overtime'
   const breakRunning = phase === 'break1' || phase === 'break2' || phase === 'break3'
-  const isLocked = phase === 'finished' || isSubmitting || periodRunning || breakRunning
+  const isLocked =
+    !playable || phase === 'finished' || isSubmitting || periodRunning || breakRunning
 
   const canStartPeriod = (periodIndex: 0 | 1 | 2) => {
     if (isLocked || phase !== 'ready') {
@@ -259,7 +261,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onMatchCompleted }) => {
     completed ? `${home}:${away}` : '-'
 
   return (
-    <div style={styles.card}>
+    <div style={{ ...styles.card, ...(playable ? {} : styles.cardLocked) }}>
       <div style={styles.header}>
         <div style={styles.teamBlock}>
           <strong>{match.homeTeam.name}</strong>
@@ -339,6 +341,9 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onMatchCompleted }) => {
       </div>
 
       {statusMessage && <p style={styles.status}>{statusMessage}</p>}
+      {!playable && !match.completed && (
+        <p style={styles.lockedText}>Available in a future fixture week</p>
+      )}
     </div>
   )
 }
@@ -353,6 +358,11 @@ const styles = {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '12px',
+  },
+  cardLocked: {
+    opacity: 0.72,
+    border: '1px solid #e5e7eb',
+    boxShadow: 'none',
   },
   header: {
     display: 'flex',
@@ -426,6 +436,13 @@ const styles = {
     backgroundColor: '#fef3c7',
     color: '#92400e',
     fontWeight: 600,
+    textAlign: 'center' as const,
+  },
+  lockedText: {
+    margin: 0,
+    fontSize: '0.85rem',
+    color: '#64748b',
+    fontStyle: 'italic' as const,
     textAlign: 'center' as const,
   },
 }

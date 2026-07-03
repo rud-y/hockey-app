@@ -1,5 +1,6 @@
 package com.rz.hockey.services;
 
+import com.rz.hockey.dto.FixturesResponse;
 import com.rz.hockey.dto.MatchResultRequest;
 import com.rz.hockey.entities.LeagueTable;
 import com.rz.hockey.entities.Match;
@@ -38,14 +39,24 @@ public class MatchService {
         this.matchRepository = matchRepository;
     }
 
-    public List<WeeklyFixture> getFixtures(CompetitionType competitionType, String seasonYear) {
-        return weeklyFixtureRepository
+    public FixturesResponse getFixtures(CompetitionType competitionType, String seasonYear) {
+        LeagueTable leagueTable = leagueTableRepository
+                .findByCompetitionTypeAndSeasonYear(competitionType, seasonYear)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "League table not found."));
+
+        List<WeeklyFixture> fixtures = weeklyFixtureRepository
                 .findByLeagueTable_CompetitionTypeAndLeagueTable_SeasonYearOrderByWeekNumberAsc(
                         competitionType, seasonYear);
+
+        return new FixturesResponse(
+                leagueTable.getActiveWeekNumber(),
+                fixtures.size(),
+                fixtures);
     }
 
     @Transactional
-    public List<WeeklyFixture> generateFixtures(CompetitionType competitionType, String seasonYear) {
+    public FixturesResponse generateFixtures(CompetitionType competitionType, String seasonYear) {
         LeagueTable leagueTable = leagueTableRepository
                 .findByCompetitionTypeAndSeasonYear(competitionType, seasonYear)
                 .orElseThrow(() -> new ResponseStatusException(
@@ -83,7 +94,51 @@ public class MatchService {
             fixtures.add(weeklyFixtureRepository.save(fixture));
         }
 
-        return fixtures;
+        leagueTable.setActiveWeekNumber(1);
+        leagueTableRepository.save(leagueTable);
+
+        return new FixturesResponse(1, fixtures.size(), fixtures);
+    }
+
+    @Transactional
+    public FixturesResponse advanceToNextWeek(CompetitionType competitionType, String seasonYear) {
+        LeagueTable leagueTable = leagueTableRepository
+                .findByCompetitionTypeAndSeasonYear(competitionType, seasonYear)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "League table not found."));
+
+        List<WeeklyFixture> fixtures = weeklyFixtureRepository
+                .findByLeagueTable_CompetitionTypeAndLeagueTable_SeasonYearOrderByWeekNumberAsc(
+                        competitionType, seasonYear);
+
+        if (fixtures.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "No fixtures have been generated yet.");
+        }
+
+        int activeWeek = leagueTable.getActiveWeekNumber();
+        WeeklyFixture currentWeek = fixtures.stream()
+                .filter(fixture -> fixture.getWeekNumber() == activeWeek)
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Current fixture week not found."));
+
+        boolean weekIncomplete = currentWeek.getMatches().stream().anyMatch(match -> !match.isCompleted());
+        if (weekIncomplete) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Complete all matches in the current week before advancing.");
+        }
+
+        int totalWeeks = fixtures.size();
+        if (activeWeek >= totalWeeks) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "All fixture weeks have already been completed.");
+        }
+
+        leagueTable.setActiveWeekNumber(activeWeek + 1);
+        leagueTableRepository.save(leagueTable);
+
+        return new FixturesResponse(activeWeek + 1, totalWeeks, fixtures);
     }
 
     @Transactional
@@ -95,6 +150,13 @@ public class MatchService {
         if (match.isCompleted()) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "Match has already been completed.");
+        }
+
+        LeagueTable leagueTable = match.getWeeklyFixture().getLeagueTable();
+        if (match.getWeeklyFixture().getWeekNumber() != leagueTable.getActiveWeekNumber()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Only matches from the current fixture week can be played.");
         }
 
         validateScores(request);

@@ -24,6 +24,9 @@ public class LeagueTable {
     @Column
     private String seasonYear;
 
+    @Column
+    private int activeWeekNumber = 1;
+
     public LeagueTable() {}
 
     public LeagueTable(List<TableRow> rows, CompetitionType competitionType, String season) {
@@ -51,6 +54,14 @@ public class LeagueTable {
 
     public Long getId() {
         return id;
+    }
+
+    public int getActiveWeekNumber() {
+        return activeWeekNumber;
+    }
+
+    public void setActiveWeekNumber(int activeWeekNumber) {
+        this.activeWeekNumber = activeWeekNumber;
     }
 
     public void setRows(List<TableRow> rows) {

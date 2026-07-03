@@ -42,7 +42,7 @@ public class TeamService {
                 .orElseThrow(() -> new RuntimeException("League table not found for "
                         + request.competitionType() + " " + request.seasonYear()));
 
-        String normalizedNam e = request.name().trim();
+        String normalizedName = request.name().trim();
         String normalizedShortName = request.shortName().trim().toUpperCase();
 
         if (matchRepository.existsByWeeklyFixture_LeagueTable_Id(leagueTable.getId())) {

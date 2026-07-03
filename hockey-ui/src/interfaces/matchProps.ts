@@ -21,6 +21,12 @@ export interface WeeklyFixtureProps {
   matches: MatchProps[]
 }
 
+export interface FixturesResponseProps {
+  activeWeekNumber: number
+  totalWeeks: number
+  fixtures: WeeklyFixtureProps[]
+}
+
 export interface MatchResultPayload {
   homeScorePeriod1: number
   awayScorePeriod1: number

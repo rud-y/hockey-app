@@ -4,12 +4,12 @@ import FixturesPanel from './components/FixturesPanel'
 import LeagueTable from './components/LeagueTable'
 import TeamForm from './components/TeamForm'
 import { API_BASE_URL, LEAGUE_CONFIG } from './constants/api'
-import { type WeeklyFixtureProps } from './interfaces/matchProps'
+import { type FixturesResponseProps } from './interfaces/matchProps'
 import { type TableRowProps } from './interfaces/tableRowProps'
 
 function App() {
   const [standings, setStandings] = useState<TableRowProps[]>([])
-  const [fixtures, setFixtures] = useState<WeeklyFixtureProps[]>([])
+  const [fixturesData, setFixturesData] = useState<FixturesResponseProps | null>(null)
 
   const loadStandings = useCallback(() => {
     const params = new URLSearchParams({
@@ -43,8 +43,8 @@ function App() {
         }
         return res.json()
       })
-      .then((data: WeeklyFixtureProps[]) => {
-        setFixtures(data)
+      .then((data: FixturesResponseProps) => {
+        setFixturesData(data.fixtures.length > 0 ? data : null)
       })
       .catch((err) => console.error('Error fetching fixtures:', err))
   }, [])
@@ -66,11 +66,15 @@ function App() {
         <TeamForm
           onTeamCreated={loadStandings}
           existingRows={standings}
-          fixturesGenerated={fixtures.length > 0}
+          fixturesGenerated={(fixturesData?.fixtures.length ?? 0) > 0}
           onFixturesGenerated={loadFixtures}
         />
         <LeagueTable rows={standings} onRowDeleted={loadStandings} />
-        <FixturesPanel fixtures={fixtures} onMatchCompleted={handleMatchCompleted} />
+        <FixturesPanel
+          fixturesData={fixturesData}
+          onMatchCompleted={handleMatchCompleted}
+          onWeekAdvanced={loadFixtures}
+        />
       </section>
 
       <div className="ticks"></div>
