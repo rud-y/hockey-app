@@ -57,6 +57,8 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
 
   const homeRegulation = sumScores(scores.home)
   const awayRegulation = sumScores(scores.away)
+  const homeTotal = homeRegulation + scores.otHome
+  const awayTotal = awayRegulation + scores.otAway
   const needsOvertime =
     completedPeriods[0] &&
     completedPeriods[1] &&
@@ -265,13 +267,18 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
       <div style={styles.header}>
         <div style={styles.teamBlock}>
           <strong>{match.homeTeam.name}</strong>
-          <span style={styles.shortName}>{match.homeTeam.shortName}</span>
         </div>
-        <span style={styles.vs}>vs</span>
-        <div style={styles.teamBlock}>
+        <div style={styles.teamBlockRight}>
           <strong>{match.awayTeam.name}</strong>
-          <span style={styles.shortName}>{match.awayTeam.shortName}</span>
         </div>
+      </div>
+
+      <div style={styles.scoreLine}>
+        <span style={styles.shortName}>{match.homeTeam.shortName}</span>
+        <span style={styles.scoreValue}>{homeTotal}</span>
+        <span style={styles.scoreDash}>-</span>
+        <span style={styles.scoreValue}>{awayTotal}</span>
+        <span style={styles.shortName}>{match.awayTeam.shortName}</span>
       </div>
 
       <div style={styles.scoreGrid}>
@@ -331,14 +338,11 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
         )}
       </div>
 
-      <div style={styles.footer}>
-        <span style={styles.total}>
-          Total: {homeRegulation + scores.otHome} - {awayRegulation + scores.otAway}
-        </span>
-        {(periodRunning || breakRunning) && (
+      {(periodRunning || breakRunning) && (
+        <div style={styles.footer}>
           <span style={styles.timer}>{secondsLeft}s</span>
-        )}
-      </div>
+        </div>
+      )}
 
       {statusMessage && <p style={styles.status}>{statusMessage}</p>}
       {!playable && !match.completed && (
@@ -350,23 +354,23 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
 
 const styles = {
   card: {
-    backgroundColor: '#fff',
-    border: '1px solid #dbeafe',
+    backgroundColor: 'var(--surface)',
+    border: '1px solid var(--green-border)',
     borderRadius: '12px',
     padding: '16px',
-    boxShadow: '0 4px 10px rgba(59, 130, 246, 0.08)',
+    boxShadow: '0 4px 12px var(--green-glow)',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '12px',
   },
   cardLocked: {
     opacity: 0.72,
-    border: '1px solid #e5e7eb',
+    border: '1px solid var(--border)',
     boxShadow: 'none',
   },
   header: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: '8px',
   },
@@ -375,14 +379,38 @@ const styles = {
     flexDirection: 'column' as const,
     gap: '4px',
     flex: 1,
+    color: 'var(--text-h)',
+    textAlign: 'left' as const,
+  },
+  teamBlockRight: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+    flex: 1,
+    color: 'var(--text-h)',
+    textAlign: 'right' as const,
+  },
+  scoreLine: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    fontSize: '1.25rem',
+    fontWeight: 700,
+    color: 'var(--text-h)',
   },
   shortName: {
-    color: '#6b7280',
-    fontSize: '0.85rem',
+    color: 'var(--text-muted)',
+    fontSize: '0.95rem',
+    fontWeight: 600,
   },
-  vs: {
-    color: '#9ca3af',
-    fontWeight: 700,
+  scoreValue: {
+    minWidth: '1.25rem',
+    textAlign: 'center' as const,
+    color: 'var(--green-bright)',
+  },
+  scoreDash: {
+    color: 'var(--text-muted)',
   },
   scoreGrid: {
     display: 'grid',
@@ -396,12 +424,13 @@ const styles = {
     gap: '6px',
     padding: '10px',
     borderRadius: '8px',
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'var(--surface-raised)',
+    color: 'var(--text-h)',
   },
   scoreLabel: {
     fontSize: '0.75rem',
     fontWeight: 700,
-    color: '#64748b',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase' as const,
   },
   periodButton: {
@@ -409,7 +438,7 @@ const styles = {
     padding: '8px 6px',
     borderRadius: '6px',
     border: 'none',
-    backgroundColor: '#2563eb',
+    backgroundColor: 'var(--green)',
     color: '#fff',
     fontSize: '0.8rem',
     fontWeight: 600,
@@ -417,31 +446,28 @@ const styles = {
   },
   footer: {
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
     fontSize: '0.9rem',
-    color: '#334155',
-  },
-  total: {
-    fontWeight: 600,
+    color: 'var(--text)',
   },
   timer: {
     fontWeight: 700,
-    color: '#2563eb',
+    color: 'var(--green-bright)',
   },
   status: {
     margin: 0,
     padding: '8px 10px',
     borderRadius: '8px',
-    backgroundColor: '#fef3c7',
-    color: '#92400e',
+    backgroundColor: 'var(--warning-bg)',
+    color: 'var(--warning-text)',
     fontWeight: 600,
     textAlign: 'center' as const,
   },
   lockedText: {
     margin: 0,
     fontSize: '0.85rem',
-    color: '#64748b',
+    color: 'var(--text-muted)',
     fontStyle: 'italic' as const,
     textAlign: 'center' as const,
   },

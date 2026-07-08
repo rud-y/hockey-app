@@ -43,18 +43,18 @@ public class HockeyApplication {
                         TableRow torRow = new TableRow();
                         torRow.setTeam(tor);
                         torRow.setLeagueTable(regularSeason);
-                        torRow.setGamesPlayed(5);
-                        torRow.setWins(4);
-                        torRow.setLosses(1);
-                        torRow.setPoints(8); // 2 points win
+                        torRow.setGamesPlayed(0);
+                        torRow.setWins(0);
+                        torRow.setLosses(0);
+                        torRow.setPoints(0); // 2 points win
 
                         TableRow islRow = new TableRow();
                         islRow.setTeam(isl);
                         islRow.setLeagueTable(regularSeason);
-                        islRow.setGamesPlayed(5);
-                        islRow.setWins(2);
-                        islRow.setLosses(3);
-                        islRow.setPoints(4);
+                        islRow.setGamesPlayed(0);
+                        islRow.setWins(0);
+                        islRow.setLosses(0);
+                        islRow.setPoints(0);
 
                         // TableRow vanRow = new TableRow();
                         // islRow.setTeam(van);

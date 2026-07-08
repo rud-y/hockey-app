@@ -63,12 +63,14 @@ function App() {
     <>
       <section id="center">
         <h1>Ice Hockey League App</h1>
-        <TeamForm
-          onTeamCreated={loadStandings}
-          existingRows={standings}
-          fixturesGenerated={(fixturesData?.fixtures.length ?? 0) > 0}
-          onFixturesGenerated={loadFixtures}
-        />
+        {!((fixturesData?.fixtures.length ?? 0) > 0) && (
+          <TeamForm
+            onTeamCreated={loadStandings}
+            existingRows={standings}
+            fixturesGenerated={(fixturesData?.fixtures.length ?? 0) > 0}
+            onFixturesGenerated={loadFixtures}
+          />
+        )}
         <LeagueTable rows={standings} onRowDeleted={loadStandings} />
         <FixturesPanel
           fixturesData={fixturesData}
