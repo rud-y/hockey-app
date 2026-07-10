@@ -492,3 +492,42 @@
   opacity: 1;
 }
 
+/* ── Match card ── */
+
+.match-card {
+  background: var(--surface);
+  border: 1px solid var(--green-border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 12px var(--green-glow);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.match-card--finished {
+  background: var(--finished-bg);
+  border-color: var(--finished-border);
+  box-shadow: none;
+}
+
+.match-card--live {
+  animation: match-pulse 1.5s ease-in-out infinite;
+}
+
+.match-card--locked {
+  opacity: 0.72;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+@keyframes match-pulse {
+  0%,
+  100% {
+    border-color: var(--green);
+    box-shadow: 0 0 0 0 var(--green-glow);
+  }
+  50% {
+    border-color: var(--green-bright);
+    box-shadow: 0 0 0 4px var(--green-glow);
+  }
+}
+

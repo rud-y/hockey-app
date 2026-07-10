@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { API_BASE_URL } from '../constants/api'
 import {
   type MatchProps,
   type MatchResultPayload,
+  type MatchCompleteResponseProps,
 } from '../interfaces/matchProps'
+import { type TableRowProps } from '../interfaces/tableRowProps'
 import {
   BREAK_DURATION_SECONDS,
   PERIOD_DURATION_SECONDS,
@@ -15,7 +17,7 @@ import {
 interface MatchCardProps {
   match: MatchProps
   playable: boolean
-  onMatchCompleted: () => void
+  onMatchCompleted: (standings?: TableRowProps[]) => void
 }
 
 type MatchPhase =
@@ -50,26 +52,56 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
   ])
   const [phase, setPhase] = useState<MatchPhase>(match.completed ? 'finished' : 'ready')
   const [secondsLeft, setSecondsLeft] = useState(0)
+  const [autoPlay, setAutoPlay] = useState(false)
+  const [awaitingOvertime, setAwaitingOvertime] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(
     match.completed ? 'Match finished' : null,
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const handledTickRef = useRef<string | null>(null)
+  const hasSubmittedRef = useRef(match.completed)
+  const scoresRef = useRef(scores)
+
+  useEffect(() => {
+    scoresRef.current = scores
+  }, [scores])
+
+  useEffect(() => {
+    hasSubmittedRef.current = match.completed
+  }, [match.id, match.completed])
 
   const homeRegulation = sumScores(scores.home)
   const awayRegulation = sumScores(scores.away)
   const homeTotal = homeRegulation + scores.otHome
   const awayTotal = awayRegulation + scores.otAway
-  const needsOvertime =
-    completedPeriods[0] &&
-    completedPeriods[1] &&
-    completedPeriods[2] &&
-    homeRegulation === awayRegulation
+  const isFinished = phase === 'finished' || match.completed
+  const regulationComplete =
+    completedPeriods[0] && completedPeriods[1] && completedPeriods[2]
+  const regulationTied =
+    regulationComplete &&
+    homeRegulation === awayRegulation &&
+    scores.otHome === 0 &&
+    scores.otAway === 0
   const showOvertime =
-    needsOvertime || scores.otHome > 0 || scores.otAway > 0 || match.homeScoreOt > 0
+    awaitingOvertime ||
+    regulationTied ||
+    scores.otHome > 0 ||
+    scores.otAway > 0 ||
+    match.homeScoreOt > 0
+
+  const periodRunning =
+    phase === 'period1' || phase === 'period2' || phase === 'period3' || phase === 'overtime'
+  const breakRunning = phase === 'break1' || phase === 'break2' || phase === 'break3'
+  const isLive = playable && !isFinished && (periodRunning || breakRunning || isSubmitting)
 
   const submitResult = useCallback(
     async (finalScores: PeriodScores) => {
+      if (hasSubmittedRef.current || match.completed) {
+        return
+      }
+      hasSubmittedRef.current = true
       setIsSubmitting(true)
+      setAutoPlay(false)
 
       const payload: MatchResultPayload = {
         homeScorePeriod1: finalScores.home[0],
@@ -94,17 +126,21 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
           throw new Error(errorBody?.message ?? 'Failed to save match result.')
         }
 
+        const result = (await response.json()) as MatchCompleteResponseProps
+
+        setAwaitingOvertime(false)
         setPhase('finished')
         setStatusMessage('Match finished')
-        onMatchCompleted()
+        onMatchCompleted(result.standings)
       } catch (err) {
+        hasSubmittedRef.current = false
         console.error('Error completing match:', err)
         setStatusMessage(err instanceof Error ? err.message : 'Could not save match result.')
       } finally {
         setIsSubmitting(false)
       }
     },
-    [match.id, onMatchCompleted],
+    [match.id, match.completed, onMatchCompleted],
   )
 
   const finishMatch = useCallback(
@@ -114,19 +150,17 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
     [submitResult],
   )
 
-  const startPeriod = (periodIndex: 0 | 1 | 2) => {
-    const phaseMap: Record<0 | 1 | 2, MatchPhase> = {
-      0: 'period1',
-      1: 'period2',
-      2: 'period3',
-    }
-
+  const startMatch = () => {
+    setAutoPlay(true)
+    setAwaitingOvertime(false)
     setStatusMessage(null)
-    setPhase(phaseMap[periodIndex])
+    setPhase('period1')
     setSecondsLeft(PERIOD_DURATION_SECONDS)
   }
 
-  const startOvertime = () => {
+  const playOvertime = () => {
+    handledTickRef.current = null
+    setAutoPlay(false)
     setStatusMessage(null)
     setPhase('overtime')
     setSecondsLeft(PERIOD_DURATION_SECONDS)
@@ -148,6 +182,12 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
     if (secondsLeft > 0) {
       return
     }
+
+    const tickKey = `${phase}:0`
+    if (handledTickRef.current === tickKey) {
+      return
+    }
+    handledTickRef.current = tickKey
 
     if (phase === 'period1') {
       const homeScore = randomPeriodScore()
@@ -182,88 +222,104 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
     if (phase === 'period3') {
       const homeScore = randomPeriodScore()
       const awayScore = randomPeriodScore()
+      const nextHome: [number, number, number] = [
+        scores.home[0],
+        scores.home[1],
+        homeScore,
+      ]
+      const nextAway: [number, number, number] = [
+        scores.away[0],
+        scores.away[1],
+        awayScore,
+      ]
+      const nextScores: PeriodScores = {
+        ...scores,
+        home: nextHome,
+        away: nextAway,
+      }
 
-      setScores((current) => {
-        const nextScores: PeriodScores = {
-          ...current,
-          home: [current.home[0], current.home[1], homeScore],
-          away: [current.away[0], current.away[1], awayScore],
-        }
+      setScores(nextScores)
+      setCompletedPeriods([true, true, true])
 
-        const homeTotal = sumScores(nextScores.home)
-        const awayTotal = sumScores(nextScores.away)
-
-        if (homeTotal === awayTotal) {
-          setStatusMessage("It's break time - overtime needed")
-          setPhase('break3')
-          setSecondsLeft(BREAK_DURATION_SECONDS)
-        } else {
-          finishMatch(nextScores)
-        }
-
-        return nextScores
-      })
-      setCompletedPeriods((current) => [current[0], current[1], true])
+      if (sumScores(nextHome) === sumScores(nextAway)) {
+        setAutoPlay(false)
+        setAwaitingOvertime(true)
+        setStatusMessage('Play overtime to decide the winner')
+        setPhase('ready')
+      } else {
+        finishMatch(nextScores)
+      }
       return
     }
 
     if (phase === 'overtime') {
       const otScore = randomOvertimeScore()
-      setScores((current) => {
-        const nextScores: PeriodScores = {
-          ...current,
-          otHome: otScore.home,
-          otAway: otScore.away,
-        }
-        finishMatch(nextScores)
-        return nextScores
-      })
+      const nextScores: PeriodScores = {
+        ...scoresRef.current,
+        otHome: otScore.home,
+        otAway: otScore.away,
+      }
+
+      setScores(nextScores)
+      finishMatch(nextScores)
       return
     }
 
-    if (phase === 'break1' || phase === 'break2' || phase === 'break3') {
+    if (phase === 'break1') {
       setStatusMessage(null)
-      setPhase('ready')
-    }
-  }, [phase, secondsLeft, finishMatch])
-
-  const periodRunning =
-    phase === 'period1' || phase === 'period2' || phase === 'period3' || phase === 'overtime'
-  const breakRunning = phase === 'break1' || phase === 'break2' || phase === 'break3'
-  const isLocked =
-    !playable || phase === 'finished' || isSubmitting || periodRunning || breakRunning
-
-  const canStartPeriod = (periodIndex: 0 | 1 | 2) => {
-    if (isLocked || phase !== 'ready') {
-      return false
+      if (autoPlay) {
+        setPhase('period2')
+        setSecondsLeft(PERIOD_DURATION_SECONDS)
+      } else {
+        setPhase('ready')
+      }
+      return
     }
 
-    if (periodIndex === 0) {
-      return !completedPeriods[0]
+    if (phase === 'break2') {
+      setStatusMessage(null)
+      if (autoPlay) {
+        setPhase('period3')
+        setSecondsLeft(PERIOD_DURATION_SECONDS)
+      } else {
+        setPhase('ready')
+      }
+      return
     }
+  }, [phase, secondsLeft, finishMatch, autoPlay])
 
-    if (periodIndex === 1) {
-      return completedPeriods[0] && !completedPeriods[1]
-    }
-
-    return completedPeriods[1] && !completedPeriods[2]
-  }
+  const canStartMatch =
+    playable &&
+    phase === 'ready' &&
+    !completedPeriods[0] &&
+    !awaitingOvertime &&
+    !regulationTied &&
+    !isSubmitting &&
+    !match.completed
 
   const overtimeReady =
-    !isLocked &&
+    playable &&
     phase === 'ready' &&
-    completedPeriods[0] &&
-    completedPeriods[1] &&
-    completedPeriods[2] &&
-    needsOvertime &&
+    !isSubmitting &&
+    !match.completed &&
+    (awaitingOvertime || regulationTied) &&
     scores.otHome === 0 &&
     scores.otAway === 0
 
   const formatPeriodScore = (home: number, away: number, completed: boolean) =>
     completed ? `${home}:${away}` : '-'
 
+  const cardClassName = [
+    'match-card',
+    isFinished ? 'match-card--finished' : '',
+    isLive ? 'match-card--live' : '',
+    !playable && !isFinished ? 'match-card--locked' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div style={{ ...styles.card, ...(playable ? {} : styles.cardLocked) }}>
+    <div className={cardClassName} style={styles.card}>
       <div style={styles.header}>
         <div style={styles.teamBlock}>
           <strong>{match.homeTeam.name}</strong>
@@ -285,38 +341,14 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
         <div style={styles.scoreColumn}>
           <span style={styles.scoreLabel}>1P</span>
           <span>{formatPeriodScore(scores.home[0], scores.away[0], completedPeriods[0])}</span>
-          <button
-            type="button"
-            style={styles.periodButton}
-            disabled={!canStartPeriod(0)}
-            onClick={() => startPeriod(0)}
-          >
-            Start 1P
-          </button>
         </div>
         <div style={styles.scoreColumn}>
           <span style={styles.scoreLabel}>2P</span>
           <span>{formatPeriodScore(scores.home[1], scores.away[1], completedPeriods[1])}</span>
-          <button
-            type="button"
-            style={styles.periodButton}
-            disabled={!canStartPeriod(1)}
-            onClick={() => startPeriod(1)}
-          >
-            Start 2P
-          </button>
         </div>
         <div style={styles.scoreColumn}>
           <span style={styles.scoreLabel}>3P</span>
           <span>{formatPeriodScore(scores.home[2], scores.away[2], completedPeriods[2])}</span>
-          <button
-            type="button"
-            style={styles.periodButton}
-            disabled={!canStartPeriod(2)}
-            onClick={() => startPeriod(2)}
-          >
-            Start 3P
-          </button>
         </div>
         {showOvertime && (
           <div style={styles.scoreColumn}>
@@ -326,23 +358,25 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
                 ? `${scores.otHome}:${scores.otAway}`
                 : '-'}
             </span>
-            <button
-              type="button"
-              style={styles.periodButton}
-              disabled={!overtimeReady}
-              onClick={startOvertime}
-            >
-              Start OT
-            </button>
           </div>
         )}
       </div>
 
-      {(periodRunning || breakRunning) && (
-        <div style={styles.footer}>
+      <div style={styles.actions}>
+        {canStartMatch && (
+          <button type="button" style={styles.startButton} onClick={startMatch}>
+            Start match
+          </button>
+        )}
+        {overtimeReady && (
+          <button type="button" style={styles.otButton} onClick={playOvertime}>
+            Play Overtime
+          </button>
+        )}
+        {(periodRunning || breakRunning) && (
           <span style={styles.timer}>{secondsLeft}s</span>
-        </div>
-      )}
+        )}
+      </div>
 
       {statusMessage && <p style={styles.status}>{statusMessage}</p>}
       {!playable && !match.completed && (
@@ -354,19 +388,9 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
 
 const styles = {
   card: {
-    backgroundColor: 'var(--surface)',
-    border: '1px solid var(--green-border)',
-    borderRadius: '12px',
-    padding: '16px',
-    boxShadow: '0 4px 12px var(--green-glow)',
     display: 'flex',
     flexDirection: 'column' as const,
     gap: '12px',
-  },
-  cardLocked: {
-    opacity: 0.72,
-    border: '1px solid var(--border)',
-    boxShadow: 'none',
   },
   header: {
     display: 'flex',
@@ -414,7 +438,7 @@ const styles = {
   },
   scoreGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(88px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
     gap: '10px',
   },
   scoreColumn: {
@@ -433,27 +457,37 @@ const styles = {
     color: 'var(--text-muted)',
     textTransform: 'uppercase' as const,
   },
-  periodButton: {
-    width: '100%',
-    padding: '8px 6px',
-    borderRadius: '6px',
-    border: 'none',
-    backgroundColor: 'var(--green)',
-    color: '#fff',
-    fontSize: '0.8rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  footer: {
+  actions: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
+    gap: '12px',
+    flexWrap: 'wrap' as const,
+  },
+  startButton: {
+    padding: '10px 20px',
+    borderRadius: '8px',
+    border: 'none',
+    backgroundColor: 'var(--green)',
+    color: '#fff',
     fontSize: '0.9rem',
-    color: 'var(--text)',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  otButton: {
+    padding: '10px 20px',
+    borderRadius: '8px',
+    border: 'none',
+    backgroundColor: 'var(--green-dim)',
+    color: '#fff',
+    fontSize: '0.9rem',
+    fontWeight: 700,
+    cursor: 'pointer',
   },
   timer: {
     fontWeight: 700,
     color: 'var(--green-bright)',
+    fontSize: '0.95rem',
   },
   status: {
     margin: 0,

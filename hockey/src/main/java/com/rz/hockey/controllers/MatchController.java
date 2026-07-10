@@ -1,7 +1,7 @@
 package com.rz.hockey.controllers;
 
+import com.rz.hockey.dto.MatchCompleteResponse;
 import com.rz.hockey.dto.MatchResultRequest;
-import com.rz.hockey.entities.Match;
 import com.rz.hockey.services.MatchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +18,7 @@ public class MatchController {
     }
 
     @PostMapping("/{matchId}/complete")
-    public ResponseEntity<Match> completeMatch(
+    public ResponseEntity<MatchCompleteResponse> completeMatch(
             @PathVariable Long matchId,
             @RequestBody MatchResultRequest request) {
         return ResponseEntity.ok(matchService.completeMatch(matchId, request));

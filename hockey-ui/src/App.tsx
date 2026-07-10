@@ -49,8 +49,12 @@ function App() {
       .catch((err) => console.error('Error fetching fixtures:', err))
   }, [])
 
-  const handleMatchCompleted = useCallback(() => {
-    loadStandings()
+  const handleMatchCompleted = useCallback((standingsFromMatch?: TableRowProps[]) => {
+    if (standingsFromMatch) {
+      setStandings(standingsFromMatch)
+    } else {
+      loadStandings()
+    }
     loadFixtures()
   }, [loadStandings, loadFixtures])
 

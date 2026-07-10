@@ -1,4 +1,5 @@
 import { type TeamProps } from './teamProps'
+import { type TableRowProps } from './tableRowProps'
 
 export interface MatchProps {
   id: number
@@ -36,4 +37,9 @@ export interface MatchResultPayload {
   awayScorePeriod3: number
   homeScoreOt: number
   awayScoreOt: number
+}
+
+export interface MatchCompleteResponseProps {
+  match: MatchProps
+  standings: TableRowProps[]
 }

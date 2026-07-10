@@ -1,6 +1,7 @@
 package com.rz.hockey.services;
 
 import com.rz.hockey.dto.FixturesResponse;
+import com.rz.hockey.dto.MatchCompleteResponse;
 import com.rz.hockey.dto.MatchResultRequest;
 import com.rz.hockey.entities.LeagueTable;
 import com.rz.hockey.entities.Match;
@@ -11,6 +12,7 @@ import com.rz.hockey.enums.CompetitionType;
 import com.rz.hockey.enums.StreakType;
 import com.rz.hockey.repositories.LeagueTableRepository;
 import com.rz.hockey.repositories.MatchRepository;
+import com.rz.hockey.repositories.TableRowRepository;
 import com.rz.hockey.repositories.WeeklyFixtureRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -29,14 +31,20 @@ public class MatchService {
     private final LeagueTableRepository leagueTableRepository;
     private final WeeklyFixtureRepository weeklyFixtureRepository;
     private final MatchRepository matchRepository;
+    private final TableRowRepository tableRowRepository;
+    private final LeagueTableService leagueTableService;
 
     public MatchService(
             LeagueTableRepository leagueTableRepository,
             WeeklyFixtureRepository weeklyFixtureRepository,
-            MatchRepository matchRepository) {
+            MatchRepository matchRepository,
+            TableRowRepository tableRowRepository,
+            LeagueTableService leagueTableService) {
         this.leagueTableRepository = leagueTableRepository;
         this.weeklyFixtureRepository = weeklyFixtureRepository;
         this.matchRepository = matchRepository;
+        this.tableRowRepository = tableRowRepository;
+        this.leagueTableService = leagueTableService;
     }
 
     public FixturesResponse getFixtures(CompetitionType competitionType, String seasonYear) {
@@ -142,7 +150,7 @@ public class MatchService {
     }
 
     @Transactional
-    public Match completeMatch(Long matchId, MatchResultRequest request) {
+    public MatchCompleteResponse completeMatch(Long matchId, MatchResultRequest request) {
         Match match = matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Match not found."));
@@ -172,7 +180,13 @@ public class MatchService {
         match.setCompleted(true);
 
         applyLeagueTableUpdates(match, request);
-        return matchRepository.save(match);
+        Match savedMatch = matchRepository.save(match);
+
+        List<TableRow> standings = leagueTableService.getStandingsByCompetition(
+                leagueTable.getCompetitionType(),
+                leagueTable.getSeasonYear());
+
+        return new MatchCompleteResponse(savedMatch, standings);
     }
 
     private void validateScores(MatchResultRequest request) {
@@ -250,13 +264,14 @@ public class MatchService {
             updateStreak(homeRow, StreakType.L);
         }
 
+        tableRowRepository.save(homeRow);
+        tableRowRepository.save(awayRow);
         leagueTableRepository.save(leagueTable);
     }
 
     private TableRow findRowForTeam(LeagueTable leagueTable, Team team) {
-        return leagueTable.getRows().stream()
-                .filter(row -> row.getTeam().getId().equals(team.getId()))
-                .findFirst()
+        return tableRowRepository
+                .findByTeam_IdAndLeagueTable_Id(team.getId(), leagueTable.getId())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Team row not found in league table."));
     }

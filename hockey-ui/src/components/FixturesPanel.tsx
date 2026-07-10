@@ -4,11 +4,12 @@ import {
   type FixturesResponseProps,
   type WeeklyFixtureProps,
 } from '../interfaces/matchProps'
+import { type TableRowProps } from '../interfaces/tableRowProps'
 import MatchCard from './MatchCard'
 
 interface FixturesPanelProps {
   fixturesData: FixturesResponseProps | null
-  onMatchCompleted: () => void
+  onMatchCompleted: (standings?: TableRowProps[]) => void
   onWeekAdvanced: () => void
 }
 

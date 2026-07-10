@@ -60,11 +60,10 @@ public class LeagueTableService {
                 .findByCompetitionTypeAndSeasonYear(competitionType, seasonYear)
                 .orElseThrow(() -> new RuntimeException("The league table was not found.."));
 
-        return table.getRows().stream()
+        return tableRowRepository.findByLeagueTable_Id(table.getId()).stream()
                 .sorted(Comparator
-                        .comparingInt(TableRow::getPoints)
-                        .thenComparingInt(TableRow::getWins)
-                        .reversed())
+                        .comparing(TableRow::getPoints, Comparator.reverseOrder())
+                        .thenComparing(TableRow::getWins, Comparator.reverseOrder()))
                 .collect(Collectors.toList());
     }
 

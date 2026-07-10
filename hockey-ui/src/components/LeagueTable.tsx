@@ -19,6 +19,8 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ rows, onRowDeleted }) => {
   const [deletingRowId, setDeletingRowId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const sortedRows = [...rows].sort((a, b) => b.points - a.points || b.wins - a.wins)
+
   const handleDelete = async (row: TableRowProps) => {
     if (!row.id) {
       setError('Cannot delete this row because it has no id.')
@@ -53,7 +55,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ rows, onRowDeleted }) => {
 
       {error && <p style={styles.error}>{error}</p>}
 
-      {rows.length === 0 ? (
+      {sortedRows.length === 0 ? (
         <p style={styles.empty}>No teams in the league table yet.</p>
       ) : (
         <table style={styles.table}>
@@ -70,7 +72,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ rows, onRowDeleted }) => {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {sortedRows.map((row) => (
               <tr key={row.id ?? row.team.shortName}>
                 <td style={styles.td}>
                   <strong>{row.team.name}</strong>
