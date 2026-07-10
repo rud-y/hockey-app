@@ -37,4 +37,10 @@ public class FixtureController {
         return ResponseEntity.ok(matchService.advanceToNextWeek(
                 request.competitionType(), request.seasonYear()));
     }
+
+    @PostMapping("/restart")
+    public ResponseEntity<FixturesResponse> restartSeason(@RequestBody AdvanceWeekRequest request) {
+        return ResponseEntity.ok(matchService.restartSeason(
+                request.competitionType(), request.seasonYear()));
+    }
 }

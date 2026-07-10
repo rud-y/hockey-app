@@ -75,7 +75,53 @@ public class MatchService {
                     HttpStatus.CONFLICT, "Fixtures have already been generated for this league.");
         }
 
-        List<Team> teams = leagueTable.getRows().stream()
+        return createFixturesForLeague(leagueTable);
+    }
+
+    @Transactional
+    public FixturesResponse restartSeason(CompetitionType competitionType, String seasonYear) {
+        LeagueTable leagueTable = leagueTableRepository
+                .findByCompetitionTypeAndSeasonYear(competitionType, seasonYear)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "League table not found."));
+
+        List<WeeklyFixture> fixtures = weeklyFixtureRepository
+                .findByLeagueTable_CompetitionTypeAndLeagueTable_SeasonYearOrderByWeekNumberAsc(
+                        competitionType, seasonYear);
+
+        if (fixtures.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "No fixtures have been generated yet.");
+        }
+
+        int activeWeek = leagueTable.getActiveWeekNumber();
+        int totalWeeks = fixtures.size();
+
+        if (activeWeek < totalWeeks) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Complete all fixture weeks before playing again.");
+        }
+
+        WeeklyFixture finalWeek = fixtures.stream()
+                .filter(fixture -> fixture.getWeekNumber() == activeWeek)
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Final fixture week not found."));
+
+        boolean finalWeekIncomplete = finalWeek.getMatches().stream().anyMatch(match -> !match.isCompleted());
+        if (finalWeekIncomplete) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Complete all matches before playing again.");
+        }
+
+        resetTableRows(leagueTable);
+        weeklyFixtureRepository.deleteAll(fixtures);
+
+        return createFixturesForLeague(leagueTable);
+    }
+
+    private FixturesResponse createFixturesForLeague(LeagueTable leagueTable) {
+        List<Team> teams = tableRowRepository.findByLeagueTable_Id(leagueTable.getId()).stream()
                 .map(TableRow::getTeam)
                 .toList();
 
@@ -106,6 +152,19 @@ public class MatchService {
         leagueTableRepository.save(leagueTable);
 
         return new FixturesResponse(1, fixtures.size(), fixtures);
+    }
+
+    private void resetTableRows(LeagueTable leagueTable) {
+        for (TableRow row : tableRowRepository.findByLeagueTable_Id(leagueTable.getId())) {
+            row.setGamesPlayed(0);
+            row.setWins(0);
+            row.setLosses(0);
+            row.setOtLosses(0);
+            row.setPoints(0);
+            row.setStreak(null);
+            row.setStreakCount(0);
+            tableRowRepository.save(row);
+        }
     }
 
     @Transactional

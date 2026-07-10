@@ -11,6 +11,7 @@ interface FixturesPanelProps {
   fixturesData: FixturesResponseProps | null
   onMatchCompleted: (standings?: TableRowProps[]) => void
   onWeekAdvanced: () => void
+  onSeasonRestarted: () => void
 }
 
 const isWeekComplete = (fixture: WeeklyFixtureProps) =>
@@ -23,10 +24,12 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
   fixturesData,
   onMatchCompleted,
   onWeekAdvanced,
+  onSeasonRestarted,
 }) => {
   const [remainingExpanded, setRemainingExpanded] = useState(false)
   const [pastExpanded, setPastExpanded] = useState(false)
   const [isAdvancing, setIsAdvancing] = useState(false)
+  const [isRestarting, setIsRestarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [visibleWeekNumber, setVisibleWeekNumber] = useState(
     () => fixturesData?.activeWeekNumber ?? 1,
@@ -123,6 +126,39 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
       setWeekFade('idle')
     } finally {
       setIsAdvancing(false)
+    }
+  }
+
+  const handleRestartSeason = async () => {
+    setError(null)
+    setIsRestarting(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/fixtures/restart`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          competitionType: LEAGUE_CONFIG.competitionType,
+          seasonYear: LEAGUE_CONFIG.seasonYear,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.message ?? 'Failed to restart the season.')
+      }
+
+      setPastExpanded(false)
+      setRemainingExpanded(false)
+      setVisibleWeekNumber(1)
+      prevActiveWeek.current = 1
+      setWeekFade('in')
+      onSeasonRestarted()
+    } catch (err) {
+      console.error('Error restarting season:', err)
+      setError(err instanceof Error ? err.message : 'Could not restart the season.')
+    } finally {
+      setIsRestarting(false)
     }
   }
 
@@ -244,6 +280,22 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
             onClick={handleAdvanceWeek}
           >
             {isAdvancing ? 'Loading next week…' : 'Play next week fixtures'}
+          </button>
+        </div>
+      )}
+
+      {seasonComplete && (
+        <div className="fixtures-advance fixtures-advance--visible">
+          <p className="fixtures-advance__message">
+            Want another run with the same teams? Restart the season.
+          </p>
+          <button
+            type="button"
+            className="fixtures-advance__button"
+            disabled={isRestarting}
+            onClick={handleRestartSeason}
+          >
+            {isRestarting ? 'Starting new season…' : 'Play again with same teams'}
           </button>
         </div>
       )}

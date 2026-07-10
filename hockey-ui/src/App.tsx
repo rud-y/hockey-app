@@ -58,6 +58,11 @@ function App() {
     loadFixtures()
   }, [loadStandings, loadFixtures])
 
+  const handleSeasonRestarted = useCallback(() => {
+    loadStandings()
+    loadFixtures()
+  }, [loadStandings, loadFixtures])
+
   useEffect(() => {
     loadStandings()
     loadFixtures()
@@ -80,6 +85,7 @@ function App() {
           fixturesData={fixturesData}
           onMatchCompleted={handleMatchCompleted}
           onWeekAdvanced={loadFixtures}
+          onSeasonRestarted={handleSeasonRestarted}
         />
       </section>
 
