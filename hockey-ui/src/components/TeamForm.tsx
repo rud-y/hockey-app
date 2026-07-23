@@ -104,6 +104,11 @@ const TeamForm: React.FC<TeamFormProps> = ({
       return
     }
 
+    if (existingRows.length % 2 !== 0) {
+      setError('The league has to have even number of teams.')
+      return
+    }
+
     if (fixturesGenerated) {
       setError('Fixtures have already been generated.')
       return
@@ -192,6 +197,10 @@ const TeamForm: React.FC<TeamFormProps> = ({
 
       {teamLimitReached && !fixturesGenerated && (
         <p style={styles.helperText}>You have reached the maximum of {MAX_TEAMS} teams.</p>
+      )}
+
+      {!fixturesGenerated && existingRows.length >= 2 && existingRows.length % 2 !== 0 && (
+        <p style={styles.helperText}>The league has to have even number of teams.</p>
       )}
     </form>
   )

@@ -135,6 +135,11 @@ public class MatchService {
                     HttpStatus.BAD_REQUEST, "Maximum of 14 teams allowed.");
         }
 
+        if (teams.size() % 2 != 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "The league needs to have even number of teams.");
+        }
+
         List<List<Team[]>> roundPairings = buildRoundRobinPairings(teams);
         List<WeeklyFixture> fixtures = new ArrayList<>();
 
