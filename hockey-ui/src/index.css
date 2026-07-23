@@ -26,6 +26,10 @@
   --danger-border: rgba(248, 113, 113, 0.35);
   --warning-bg: rgba(234, 179, 8, 0.15);
   --warning-text: #fbbf24;
+  --playoff-blue: #60a5fa;
+  --playoff-blue-bg: rgba(96, 165, 250, 0.12);
+  --playoff-blue-border: rgba(96, 165, 250, 0.55);
+  --playoff-cut-line: #93c5fd;
   --finished-bg: rgba(80, 30, 30, 0.45);
   --finished-border: rgba(248, 113, 113, 0.25);
   --input-bg: #161920;

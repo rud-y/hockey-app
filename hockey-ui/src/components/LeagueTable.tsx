@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { API_BASE_URL } from '../constants/api'
 import { type TableRowProps } from '../interfaces/tableRowProps'
+import { getPlayoffTeamCount } from '../utils/playoffs'
 
 interface LeagueTableProps {
   rows: TableRowProps[]
+  seasonComplete?: boolean
   onRowDeleted: () => void
 }
 
@@ -15,11 +17,30 @@ const formatStreak = (row: TableRowProps) => {
   return `${row.streak}${row.streakCount}`
 }
 
-const LeagueTable: React.FC<LeagueTableProps> = ({ rows, onRowDeleted }) => {
+const playoffCellExtras = (
+  isFirstPlayoff: boolean,
+  isLastPlayoff: boolean,
+): CSSProperties => ({
+  backgroundColor: 'var(--playoff-blue-bg)',
+  borderTop: isFirstPlayoff
+    ? '2px solid var(--playoff-blue-border)'
+    : '1px solid var(--playoff-blue-border)',
+  borderBottom: isLastPlayoff
+    ? '4px solid var(--playoff-cut-line)'
+    : '1px solid var(--playoff-blue-border)',
+})
+
+const LeagueTable: React.FC<LeagueTableProps> = ({
+  rows,
+  seasonComplete = false,
+  onRowDeleted,
+}) => {
   const [deletingRowId, setDeletingRowId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const sortedRows = [...rows].sort((a, b) => b.points - a.points || b.wins - a.wins)
+  const playoffSpots = seasonComplete ? getPlayoffTeamCount(sortedRows.length) : 0
+  const showPlayoffMarkers = seasonComplete && playoffSpots > 0
 
   const handleDelete = async (row: TableRowProps) => {
     if (!row.id) {
@@ -53,6 +74,12 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ rows, onRowDeleted }) => {
     <div style={styles.wrapper}>
       <h2 style={styles.title}>League Table</h2>
 
+      {showPlayoffMarkers && (
+        <p style={styles.playoffBanner} role="status">
+          These are teams getting to the Play-offs!
+        </p>
+      )}
+
       {error && <p style={styles.error}>{error}</p>}
 
       {sortedRows.length === 0 ? (
@@ -72,32 +99,60 @@ const LeagueTable: React.FC<LeagueTableProps> = ({ rows, onRowDeleted }) => {
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((row) => (
-              <tr key={row.id ?? row.team.shortName}>
-                <td style={styles.td}>
-                  <strong>{row.team.name}</strong>
-                  <span style={styles.shortName}> ({row.team.shortName})</span>
-                </td>
-                <td style={styles.tdCenter}>{row.gamesPlayed}</td>
-                <td style={styles.tdCenter}>{row.wins}</td>
-                <td style={styles.tdCenter}>{row.losses}</td>
-                <td style={styles.tdCenter}>{row.otLosses}</td>
-                <td style={styles.tdCenter}>{row.points}</td>
-                <td style={styles.tdCenter}>{formatStreak(row)}</td>
-                <td style={styles.tdAction}>
-                  <button
-                    type="button"
-                    style={styles.deleteButton}
-                    onClick={() => handleDelete(row)}
-                    disabled={deletingRowId === row.id}
-                    aria-label={`Delete ${row.team.name}`}
-                    title={`Delete ${row.team.name}`}
+            {sortedRows.map((row, index) => {
+              const isPlayoff = showPlayoffMarkers && index < playoffSpots
+              const isFirstPlayoff = isPlayoff && index === 0
+              const isLastPlayoff = isPlayoff && index === playoffSpots - 1
+              const extras = isPlayoff
+                ? playoffCellExtras(isFirstPlayoff, isLastPlayoff)
+                : null
+
+              return (
+                <tr
+                  key={row.id ?? row.team.shortName}
+                  aria-label={
+                    isPlayoff
+                      ? `${row.team.name}, qualified for Play-offs`
+                      : undefined
+                  }
+                >
+                  <td
+                    style={{
+                      ...styles.td,
+                      ...extras,
+                      ...(isPlayoff ? { borderLeft: '3px solid var(--playoff-blue)' } : {}),
+                    }}
                   >
-                    {deletingRowId === row.id ? '…' : '×'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+                    <strong>{row.team.name}</strong>
+                    <span style={styles.shortName}> ({row.team.shortName})</span>
+                  </td>
+                  <td style={{ ...styles.tdCenter, ...extras }}>{row.gamesPlayed}</td>
+                  <td style={{ ...styles.tdCenter, ...extras }}>{row.wins}</td>
+                  <td style={{ ...styles.tdCenter, ...extras }}>{row.losses}</td>
+                  <td style={{ ...styles.tdCenter, ...extras }}>{row.otLosses}</td>
+                  <td style={{ ...styles.tdCenter, ...extras }}>{row.points}</td>
+                  <td style={{ ...styles.tdCenter, ...extras }}>{formatStreak(row)}</td>
+                  <td
+                    style={{
+                      ...styles.tdAction,
+                      ...extras,
+                      ...(isPlayoff ? { borderRight: '3px solid var(--playoff-blue)' } : {}),
+                    }}
+                  >
+                    <button
+                      type="button"
+                      style={styles.deleteButton}
+                      onClick={() => handleDelete(row)}
+                      disabled={deletingRowId === row.id}
+                      aria-label={`Delete ${row.team.name}`}
+                      title={`Delete ${row.team.name}`}
+                    >
+                      {deletingRowId === row.id ? '…' : '×'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       )}
@@ -120,6 +175,17 @@ const styles = {
     margin: '0 0 16px',
     fontSize: '1.4rem',
     color: 'var(--text-h)',
+  },
+  playoffBanner: {
+    margin: '0 0 16px',
+    padding: '10px 14px',
+    borderRadius: '8px',
+    backgroundColor: 'var(--playoff-blue-bg)',
+    border: '1px solid var(--playoff-blue-border)',
+    color: 'var(--playoff-blue)',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    textAlign: 'left' as const,
   },
   error: {
     margin: '0 0 12px',

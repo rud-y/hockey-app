@@ -68,6 +68,20 @@ function App() {
     loadFixtures()
   }, [loadStandings, loadFixtures])
 
+  const seasonComplete = (() => {
+    if (!fixturesData || fixturesData.fixtures.length === 0) {
+      return false
+    }
+
+    const { activeWeekNumber, totalWeeks, fixtures } = fixturesData
+    const currentWeek = fixtures.find((fixture) => fixture.weekNumber === activeWeekNumber)
+    if (!currentWeek || activeWeekNumber < totalWeeks) {
+      return false
+    }
+
+    return currentWeek.matches.every((match) => match.completed)
+  })()
+
   return (
     <>
       <section id="center">
@@ -80,7 +94,11 @@ function App() {
             onFixturesGenerated={loadFixtures}
           />
         )}
-        <LeagueTable rows={standings} onRowDeleted={loadStandings} />
+        <LeagueTable
+          rows={standings}
+          seasonComplete={seasonComplete}
+          onRowDeleted={loadStandings}
+        />
         <FixturesPanel
           fixturesData={fixturesData}
           onMatchCompleted={handleMatchCompleted}
