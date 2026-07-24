@@ -215,8 +215,15 @@ public class MatchService {
             row.setLosses(0);
             row.setOtLosses(0);
             row.setPoints(0);
+            row.setGoalsFor(0);
+            row.setGoalsAgainst(0);
             row.setStreak(null);
             row.setStreakCount(0);
+
+            Team team = row.getTeam();
+            team.setGoalsFor(0);
+            team.setGoalsAgainst(0);
+
             tableRowRepository.save(row);
         }
     }
@@ -315,6 +322,11 @@ public class MatchService {
         int homeTotal = homeRegulation + request.homeScoreOt();
         int awayTotal = awayRegulation + request.awayScoreOt();
         boolean wentToOvertime = homeRegulation == awayRegulation;
+
+        homeRow.addMatchGoals(homeTotal, awayTotal);
+        awayRow.addMatchGoals(awayTotal, homeTotal);
+        homeTeam.addMatchGoals(homeTotal, awayTotal);
+        awayTeam.addMatchGoals(awayTotal, homeTotal);
 
         homeRow.setGamesPlayed(homeRow.getGamesPlayed() + 1);
         awayRow.setGamesPlayed(awayRow.getGamesPlayed() + 1);

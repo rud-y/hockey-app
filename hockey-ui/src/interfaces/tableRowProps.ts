@@ -8,6 +8,8 @@ export interface TableRowProps {
   losses: number
   otLosses: number
   points: number
+  goalsFor?: number
+  goalsAgainst?: number
   streak?: 'W' | 'L' | null
   streakCount: number
 }

@@ -1,7 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
 import { type TableRowProps } from '../interfaces/tableRowProps'
-import { getPlayoffTeamCount } from '../utils/playoffs'
+import { compareStandingsRows, getPlayoffTeamCount } from '../utils/playoffs'
 
 interface LeagueTableProps {
   rows: TableRowProps[]
@@ -46,7 +46,7 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
   const [isStartingPlayoffs, setIsStartingPlayoffs] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
-  const sortedRows = [...rows].sort((a, b) => b.points - a.points || b.wins - a.wins)
+  const sortedRows = [...rows].sort(compareStandingsRows)
   const playoffSpots =
     seasonComplete && !playoffsStarted ? getPlayoffTeamCount(sortedRows.length) : 0
   const showPlayoffMarkers = playoffSpots > 0
@@ -160,6 +160,8 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
                 <th style={styles.th}>W</th>
                 <th style={styles.th}>L</th>
                 <th style={styles.th}>OTL</th>
+                <th style={styles.th}>GF</th>
+                <th style={styles.th}>GA</th>
                 <th style={styles.th}>PTS</th>
                 <th style={styles.th}>Streak</th>
                 {!playoffsStarted && <th style={styles.thAction} aria-label="Delete team" />}
@@ -203,6 +205,8 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
                     <td style={{ ...styles.tdCenter, ...extras }}>{row.wins}</td>
                     <td style={{ ...styles.tdCenter, ...extras }}>{row.losses}</td>
                     <td style={{ ...styles.tdCenter, ...extras }}>{row.otLosses}</td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{row.goalsFor ?? 0}</td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{row.goalsAgainst ?? 0}</td>
                     <td style={{ ...styles.tdCenter, ...extras }}>{row.points}</td>
                     <td style={{ ...styles.tdCenter, ...extras }}>{formatStreak(row)}</td>
                     {!playoffsStarted && (

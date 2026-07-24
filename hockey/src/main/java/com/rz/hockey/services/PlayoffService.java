@@ -146,6 +146,14 @@ public class PlayoffService {
         game.setAwayScoreOt(request.awayScoreOt());
         game.setCompleted(true);
 
+        int homeRegulation = request.homeScorePeriod1() + request.homeScorePeriod2() + request.homeScorePeriod3();
+        int awayRegulation = request.awayScorePeriod1() + request.awayScorePeriod2() + request.awayScorePeriod3();
+        int homeTotal = homeRegulation + request.homeScoreOt();
+        int awayTotal = awayRegulation + request.awayScoreOt();
+
+        game.getHomeTeam().addMatchGoals(homeTotal, awayTotal);
+        game.getAwayTeam().addMatchGoals(awayTotal, homeTotal);
+
         Team gameWinner = resolveGameWinner(game, request);
         if (gameWinner.getId().equals(series.getHigherSeedTeam().getId())) {
             series.setHigherSeedWins(series.getHigherSeedWins() + 1);

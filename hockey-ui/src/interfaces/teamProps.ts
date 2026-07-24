@@ -5,4 +5,6 @@ export interface TeamProps {
   name: string
   shortName: string
   players: PlayerProps[]
+  goalsFor?: number
+  goalsAgainst?: number
 }

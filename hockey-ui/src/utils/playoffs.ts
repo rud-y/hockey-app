@@ -1,3 +1,5 @@
+import { type TableRowProps } from '../interfaces/tableRowProps'
+
 /**
  * Number of teams that advance to the Playoffs after the regular season.
  * Takes the top half of the table, then adds one when that count is odd
@@ -16,6 +18,18 @@ export function getPlayoffTeamCount(totalTeams: number): number {
   }
 
   return Math.min(playoffSpots, totalTeams)
+}
+
+/** Standings order used for the league table and playoff seeding. */
+export function compareStandingsRows(a: TableRowProps, b: TableRowProps): number {
+  return (
+    b.points - a.points ||
+    b.wins - a.wins ||
+    a.losses - b.losses ||
+    a.otLosses - b.otLosses ||
+    (b.goalsFor ?? 0) - (a.goalsFor ?? 0) ||
+    (a.goalsAgainst ?? 0) - (b.goalsAgainst ?? 0)
+  )
 }
 
 export const ALLOWED_TEAM_COUNTS = [4, 8, 16, 32] as const

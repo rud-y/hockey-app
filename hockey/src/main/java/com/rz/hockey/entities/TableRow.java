@@ -32,6 +32,12 @@ public class TableRow {
     @Column
     private int points;
 
+    @Column
+    private int goalsFor;
+
+    @Column
+    private int goalsAgainst;
+
     @Enumerated(EnumType.STRING)
     private StreakType streak;
 
@@ -48,6 +54,8 @@ public class TableRow {
         this.losses = losses;
         this.otLosses = otLosses;
         this.points = points;
+        this.goalsFor = 0;
+        this.goalsAgainst = 0;
         this.streak = streak;
         this.streakCount = streakCount;
     }
@@ -82,6 +90,14 @@ public class TableRow {
 
     public int getPoints() {
         return points;
+    }
+
+    public int getGoalsFor() {
+        return goalsFor;
+    }
+
+    public int getGoalsAgainst() {
+        return goalsAgainst;
     }
 
     public StreakType getStreak() {
@@ -120,11 +136,24 @@ public class TableRow {
         this.points = points;
     }
 
+    public void setGoalsFor(int goalsFor) {
+        this.goalsFor = goalsFor;
+    }
+
+    public void setGoalsAgainst(int goalsAgainst) {
+        this.goalsAgainst = goalsAgainst;
+    }
+
     public void setStreak(StreakType streak) {
         this.streak = streak;
     }
 
     public void setStreakCount(int streakCount) {
         this.streakCount = streakCount;
+    }
+
+    public void addMatchGoals(int scored, int conceded) {
+        this.goalsFor += scored;
+        this.goalsAgainst += conceded;
     }
 }

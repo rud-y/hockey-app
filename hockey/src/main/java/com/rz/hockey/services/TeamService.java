@@ -72,6 +72,8 @@ public class TeamService {
         }
 
         Team team = new Team(normalizedName, normalizedShortName);
+        team.setGoalsFor(0);
+        team.setGoalsAgainst(0);
 
         if (request.playerNames() != null) {
             for (String playerName : request.playerNames()) {
@@ -90,6 +92,8 @@ public class TeamService {
         row.setLosses(0);
         row.setOtLosses(0);
         row.setPoints(0);
+        row.setGoalsFor(0);
+        row.setGoalsAgainst(0);
         row.setStreakCount(0);
 
         leagueTable.addRow(row);

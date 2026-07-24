@@ -21,11 +21,19 @@ public class Team {
     @JsonIgnoreProperties("team")
     private List<Player> players = new ArrayList<>();
 
+    @Column
+    private int goalsFor;
+
+    @Column
+    private int goalsAgainst;
+
     public Team() {}
 
     public Team(String name, String shortName) {
         this.name = name;
         this.shortName = shortName;
+        this.goalsFor = 0;
+        this.goalsAgainst = 0;
     }
 
     public String getName() {
@@ -44,6 +52,14 @@ public class Team {
         return players;
     }
 
+    public int getGoalsFor() {
+        return goalsFor;
+    }
+
+    public int getGoalsAgainst() {
+        return goalsAgainst;
+    }
+
     public void setName(String name) {
         this.name = name;
     }
@@ -52,7 +68,20 @@ public class Team {
         this.shortName = shortName;
     }
 
+    public void setGoalsFor(int goalsFor) {
+        this.goalsFor = goalsFor;
+    }
+
+    public void setGoalsAgainst(int goalsAgainst) {
+        this.goalsAgainst = goalsAgainst;
+    }
+
     public void addPlayer(Player player) {
         players.add(player);
+    }
+
+    public void addMatchGoals(int scored, int conceded) {
+        this.goalsFor += scored;
+        this.goalsAgainst += conceded;
     }
 }
