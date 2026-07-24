@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
 import { type TableRowProps } from '../interfaces/tableRowProps'
-import { MAX_TEAMS } from '../utils/matchSimulation'
+import { MAX_TEAMS, ALLOWED_TEAM_COUNTS } from '../utils/matchSimulation'
 
 interface TeamFormProps {
   onTeamCreated: () => void
@@ -26,7 +26,10 @@ const TeamForm: React.FC<TeamFormProps> = ({
   const [isGeneratingFixtures, setIsGeneratingFixtures] = useState(false)
 
   const teamLimitReached = existingRows.length >= MAX_TEAMS
-  const canGenerateFixtures = !fixturesGenerated && existingRows.length >= 2
+  const hasAllowedTeamCount = (ALLOWED_TEAM_COUNTS as readonly number[]).includes(
+    existingRows.length,
+  )
+  const canGenerateFixtures = !fixturesGenerated && hasAllowedTeamCount
 
   const handlePlayerChange = (index: number, value: string) => {
     setPlayerNames((prev) => prev.map((player, i) => (i === index ? value : player)))
@@ -99,13 +102,8 @@ const TeamForm: React.FC<TeamFormProps> = ({
   const handleGenerateFixtures = async () => {
     setError(null)
 
-    if (existingRows.length < 2) {
-      setError('Add at least 2 teams before generating fixtures.')
-      return
-    }
-
-    if (existingRows.length % 2 !== 0) {
-      setError('The league has to have even number of teams.')
+    if (!(ALLOWED_TEAM_COUNTS as readonly number[]).includes(existingRows.length)) {
+      setError('The league must have 4, 8, 16, or 32 teams to generate fixtures.')
       return
     }
 
@@ -199,8 +197,11 @@ const TeamForm: React.FC<TeamFormProps> = ({
         <p style={styles.helperText}>You have reached the maximum of {MAX_TEAMS} teams.</p>
       )}
 
-      {!fixturesGenerated && existingRows.length >= 2 && existingRows.length % 2 !== 0 && (
-        <p style={styles.helperText}>The league has to have even number of teams.</p>
+      {!fixturesGenerated && existingRows.length > 0 && !hasAllowedTeamCount && (
+        <p style={styles.helperText}>
+          Add teams until you have 4, 8, 16, or 32 to generate fixtures. Currently:{' '}
+          {existingRows.length}.
+        </p>
       )}
     </form>
   )

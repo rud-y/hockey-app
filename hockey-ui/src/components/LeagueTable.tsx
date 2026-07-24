@@ -1,12 +1,15 @@
 import { useState, type CSSProperties } from 'react'
-import { API_BASE_URL } from '../constants/api'
+import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
 import { type TableRowProps } from '../interfaces/tableRowProps'
 import { getPlayoffTeamCount } from '../utils/playoffs'
 
 interface LeagueTableProps {
   rows: TableRowProps[]
   seasonComplete?: boolean
+  playoffsStarted?: boolean
+  playoffsComplete?: boolean
   onRowDeleted: () => void
+  onPlayoffsStarted: () => void
 }
 
 const formatStreak = (row: TableRowProps) => {
@@ -33,14 +36,23 @@ const playoffCellExtras = (
 const LeagueTable: React.FC<LeagueTableProps> = ({
   rows,
   seasonComplete = false,
+  playoffsStarted = false,
+  playoffsComplete = false,
   onRowDeleted,
+  onPlayoffsStarted,
 }) => {
   const [deletingRowId, setDeletingRowId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isStartingPlayoffs, setIsStartingPlayoffs] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   const sortedRows = [...rows].sort((a, b) => b.points - a.points || b.wins - a.wins)
-  const playoffSpots = seasonComplete ? getPlayoffTeamCount(sortedRows.length) : 0
-  const showPlayoffMarkers = seasonComplete && playoffSpots > 0
+  const playoffSpots =
+    seasonComplete && !playoffsStarted ? getPlayoffTeamCount(sortedRows.length) : 0
+  const showPlayoffMarkers = playoffSpots > 0
+  const hideTableBody = playoffsStarted && !playoffsComplete
+  const collapsible = playoffsComplete
+  const showTableContent = !hideTableBody && (!collapsible || expanded)
 
   const handleDelete = async (row: TableRowProps) => {
     if (!row.id) {
@@ -70,92 +82,157 @@ const LeagueTable: React.FC<LeagueTableProps> = ({
     }
   }
 
+  const handleStartPlayoffs = async () => {
+    setError(null)
+    setIsStartingPlayoffs(true)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/playoffs/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          competitionType: LEAGUE_CONFIG.competitionType,
+          seasonYear: LEAGUE_CONFIG.seasonYear,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.message ?? 'Failed to start playoffs.')
+      }
+
+      onPlayoffsStarted()
+    } catch (err) {
+      console.error('Error starting playoffs:', err)
+      setError(err instanceof Error ? err.message : 'Could not start playoffs.')
+    } finally {
+      setIsStartingPlayoffs(false)
+    }
+  }
+
+  if (hideTableBody) {
+    return null
+  }
+
   return (
     <div style={styles.wrapper}>
       <h2 style={styles.title}>League Table</h2>
 
       {showPlayoffMarkers && (
-        <p style={styles.playoffBanner} role="status">
-          These are teams getting to the Play-offs!
-        </p>
+        <div style={styles.playoffBannerRow}>
+          <p style={styles.playoffBanner} role="status">
+            These are teams getting to the Play-offs!
+          </p>
+          <button
+            type="button"
+            style={styles.startPlayoffsButton}
+            disabled={isStartingPlayoffs}
+            onClick={handleStartPlayoffs}
+          >
+            {isStartingPlayoffs ? 'Starting…' : 'Ready to start Playoff matches?'}
+          </button>
+        </div>
+      )}
+
+      {collapsible && (
+        <button
+          type="button"
+          className="fixtures-collapsible__toggle"
+          style={styles.collapseToggle}
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+        >
+          {expanded ? 'Hide League Table' : 'Expand League Table'}
+        </button>
       )}
 
       {error && <p style={styles.error}>{error}</p>}
 
-      {sortedRows.length === 0 ? (
-        <p style={styles.empty}>No teams in the league table yet.</p>
-      ) : (
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Team</th>
-              <th style={styles.th}>GP</th>
-              <th style={styles.th}>W</th>
-              <th style={styles.th}>L</th>
-              <th style={styles.th}>OTL</th>
-              <th style={styles.th}>PTS</th>
-              <th style={styles.th}>Streak</th>
-              <th style={styles.thAction} aria-label="Delete team" />
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((row, index) => {
-              const isPlayoff = showPlayoffMarkers && index < playoffSpots
-              const isFirstPlayoff = isPlayoff && index === 0
-              const isLastPlayoff = isPlayoff && index === playoffSpots - 1
-              const extras = isPlayoff
-                ? playoffCellExtras(isFirstPlayoff, isLastPlayoff)
-                : null
+      {showTableContent &&
+        (sortedRows.length === 0 ? (
+          <p style={styles.empty}>No teams in the league table yet.</p>
+        ) : (
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Team</th>
+                <th style={styles.th}>GP</th>
+                <th style={styles.th}>W</th>
+                <th style={styles.th}>L</th>
+                <th style={styles.th}>OTL</th>
+                <th style={styles.th}>PTS</th>
+                <th style={styles.th}>Streak</th>
+                {!playoffsStarted && <th style={styles.thAction} aria-label="Delete team" />}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRows.map((row, index) => {
+                const isPlayoff =
+                  (showPlayoffMarkers || playoffsComplete) &&
+                  index < getPlayoffTeamCount(sortedRows.length)
+                const spots = getPlayoffTeamCount(sortedRows.length)
+                const isFirstPlayoff = isPlayoff && index === 0
+                const isLastPlayoff = isPlayoff && index === spots - 1
+                const extras =
+                  (showPlayoffMarkers || playoffsComplete) && isPlayoff
+                    ? playoffCellExtras(isFirstPlayoff, isLastPlayoff)
+                    : null
 
-              return (
-                <tr
-                  key={row.id ?? row.team.shortName}
-                  aria-label={
-                    isPlayoff
-                      ? `${row.team.name}, qualified for Play-offs`
-                      : undefined
-                  }
-                >
-                  <td
-                    style={{
-                      ...styles.td,
-                      ...extras,
-                      ...(isPlayoff ? { borderLeft: '3px solid var(--playoff-blue)' } : {}),
-                    }}
+                return (
+                  <tr
+                    key={row.id ?? row.team.shortName}
+                    aria-label={
+                      isPlayoff
+                        ? `${row.team.name}, qualified for Play-offs`
+                        : undefined
+                    }
                   >
-                    <strong>{row.team.name}</strong>
-                    <span style={styles.shortName}> ({row.team.shortName})</span>
-                  </td>
-                  <td style={{ ...styles.tdCenter, ...extras }}>{row.gamesPlayed}</td>
-                  <td style={{ ...styles.tdCenter, ...extras }}>{row.wins}</td>
-                  <td style={{ ...styles.tdCenter, ...extras }}>{row.losses}</td>
-                  <td style={{ ...styles.tdCenter, ...extras }}>{row.otLosses}</td>
-                  <td style={{ ...styles.tdCenter, ...extras }}>{row.points}</td>
-                  <td style={{ ...styles.tdCenter, ...extras }}>{formatStreak(row)}</td>
-                  <td
-                    style={{
-                      ...styles.tdAction,
-                      ...extras,
-                      ...(isPlayoff ? { borderRight: '3px solid var(--playoff-blue)' } : {}),
-                    }}
-                  >
-                    <button
-                      type="button"
-                      style={styles.deleteButton}
-                      onClick={() => handleDelete(row)}
-                      disabled={deletingRowId === row.id}
-                      aria-label={`Delete ${row.team.name}`}
-                      title={`Delete ${row.team.name}`}
+                    <td
+                      style={{
+                        ...styles.td,
+                        ...extras,
+                        ...(isPlayoff && (showPlayoffMarkers || playoffsComplete)
+                          ? { borderLeft: '3px solid var(--playoff-blue)' }
+                          : {}),
+                      }}
                     >
-                      {deletingRowId === row.id ? '…' : '×'}
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      )}
+                      <strong>{row.team.name}</strong>
+                      <span style={styles.shortName}> ({row.team.shortName})</span>
+                    </td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{row.gamesPlayed}</td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{row.wins}</td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{row.losses}</td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{row.otLosses}</td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{row.points}</td>
+                    <td style={{ ...styles.tdCenter, ...extras }}>{formatStreak(row)}</td>
+                    {!playoffsStarted && (
+                      <td
+                        style={{
+                          ...styles.tdAction,
+                          ...extras,
+                          ...(isPlayoff && showPlayoffMarkers
+                            ? { borderRight: '3px solid var(--playoff-blue)' }
+                            : {}),
+                        }}
+                      >
+                        <button
+                          type="button"
+                          style={styles.deleteButton}
+                          onClick={() => handleDelete(row)}
+                          disabled={deletingRowId === row.id || seasonComplete}
+                          aria-label={`Delete ${row.team.name}`}
+                          title={`Delete ${row.team.name}`}
+                        >
+                          {deletingRowId === row.id ? '…' : '×'}
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        ))}
     </div>
   )
 }
@@ -176,8 +253,15 @@ const styles = {
     fontSize: '1.4rem',
     color: 'var(--text-h)',
   },
+  playoffBannerRow: {
+    display: 'flex',
+    flexWrap: 'wrap' as const,
+    gap: '12px',
+    alignItems: 'center',
+    marginBottom: '16px',
+  },
   playoffBanner: {
-    margin: '0 0 16px',
+    margin: 0,
     padding: '10px 14px',
     borderRadius: '8px',
     backgroundColor: 'var(--playoff-blue-bg)',
@@ -186,6 +270,22 @@ const styles = {
     fontSize: '0.95rem',
     fontWeight: 600,
     textAlign: 'left' as const,
+    flex: '1 1 240px',
+  },
+  startPlayoffsButton: {
+    padding: '10px 16px',
+    borderRadius: '8px',
+    border: '1px solid var(--playoff-blue-border)',
+    backgroundColor: 'var(--playoff-blue)',
+    color: '#0f172a',
+    fontSize: '0.9rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
+  },
+  collapseToggle: {
+    marginBottom: '12px',
+    alignSelf: 'flex-start',
   },
   error: {
     margin: '0 0 12px',

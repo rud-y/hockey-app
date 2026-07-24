@@ -1,4 +1,5 @@
-export const MAX_TEAMS = 14
+export const MAX_TEAMS = 32
+export const ALLOWED_TEAM_COUNTS = [4, 8, 16, 32] as const
 export const PERIOD_DURATION_SECONDS = 3
 export const BREAK_DURATION_SECONDS = 3
 

@@ -12,6 +12,8 @@ interface FixturesPanelProps {
   onMatchCompleted: (standings?: TableRowProps[]) => void
   onWeekAdvanced: () => void
   onSeasonRestarted: () => void
+  playoffsStarted?: boolean
+  playoffsComplete?: boolean
 }
 
 const isWeekComplete = (fixture: WeeklyFixtureProps) =>
@@ -25,6 +27,8 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
   onMatchCompleted,
   onWeekAdvanced,
   onSeasonRestarted,
+  playoffsStarted = false,
+  playoffsComplete = false,
 }) => {
   const [remainingExpanded, setRemainingExpanded] = useState(false)
   const [pastExpanded, setPastExpanded] = useState(false)
@@ -84,12 +88,14 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
   const remainingWeeks = fixtures.filter((fixture) => fixture.weekNumber > activeWeekNumber)
   const currentWeekComplete = actualCurrentWeek ? isWeekComplete(actualCurrentWeek) : false
   const seasonComplete = activeWeekNumber >= totalWeeks && currentWeekComplete
+  const hideDuringPlayoffs = playoffsStarted && !playoffsComplete
+  const reviewOnlyAfterPlayoffs = playoffsComplete
 
   const completedInWeek = actualCurrentWeek ? countCompletedMatches(actualCurrentWeek) : 0
   const totalInWeek = actualCurrentWeek?.matches.length ?? 0
 
-  const reviewWeeks = seasonComplete ? fixtures : pastWeeks
-  const reviewToggleLabel = seasonComplete
+  const reviewWeeks = seasonComplete || reviewOnlyAfterPlayoffs ? fixtures : pastWeeks
+  const reviewToggleLabel = seasonComplete || reviewOnlyAfterPlayoffs
     ? pastExpanded
       ? 'Close all fixtures'
       : 'Expand all fixtures'
@@ -190,6 +196,10 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
     </section>
   )
 
+  if (hideDuringPlayoffs) {
+    return null
+  }
+
   const weekFadeClass =
     weekFade === 'out'
       ? 'fixtures-current-week--fade-out'
@@ -201,7 +211,7 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
     <div ref={panelRef} className="fixtures-panel">
       <div className="fixtures-panel__header">
         <h2 className="fixtures-panel__title">Season Fixtures</h2>
-        {!seasonComplete && (
+        {!seasonComplete && !reviewOnlyAfterPlayoffs && (
           <div className="fixtures-progress" aria-label={`Week ${activeWeekNumber} of ${totalWeeks}`}>
             <span className="fixtures-progress__label">
               Week {activeWeekNumber} of {totalWeeks}
@@ -231,7 +241,11 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
         )}
       </div>
 
-      {seasonComplete ? (
+      {reviewOnlyAfterPlayoffs ? (
+        <p className="fixtures-panel__subtitle">
+          Regular season fixtures are available below for review.
+        </p>
+      ) : seasonComplete ? (
         <p className="fixtures-panel__subtitle">
           Season complete. Expand all fixtures below to review every match result.
         </p>
@@ -244,7 +258,7 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
 
       {error && <p className="fixtures-panel__error">{error}</p>}
 
-      {!seasonComplete && actualCurrentWeek && totalInWeek > 0 && (
+      {!seasonComplete && !reviewOnlyAfterPlayoffs && actualCurrentWeek && totalInWeek > 0 && (
         <div className="fixtures-week-status">
           <span>
             {completedInWeek} / {totalInWeek} matches played this week
@@ -258,7 +272,7 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
         </div>
       )}
 
-      {!seasonComplete && currentWeek && (
+      {!seasonComplete && !reviewOnlyAfterPlayoffs && currentWeek && (
         <div
           ref={currentWeekRef}
           key={`week-${visibleWeekNumber}`}
@@ -268,7 +282,10 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
         </div>
       )}
 
-      {!seasonComplete && currentWeekComplete && activeWeekNumber < totalWeeks && (
+      {!seasonComplete &&
+        !reviewOnlyAfterPlayoffs &&
+        currentWeekComplete &&
+        activeWeekNumber < totalWeeks && (
         <div className="fixtures-advance fixtures-advance--visible">
           <p className="fixtures-advance__message">
             Week {activeWeekNumber} is complete. Ready to play Week {activeWeekNumber + 1}?
@@ -284,7 +301,7 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
         </div>
       )}
 
-      {seasonComplete && (
+      {seasonComplete && !playoffsStarted && (
         <div className="fixtures-advance fixtures-advance--visible">
           <p className="fixtures-advance__message">
             Want another run with the same teams? Restart the season.
@@ -300,11 +317,11 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
         </div>
       )}
 
-      {seasonComplete && (
+      {seasonComplete && !playoffsStarted && (
         <p className="fixtures-panel__season-complete">All fixture weeks have been completed.</p>
       )}
 
-      {reviewWeeks.length > 0 && (
+      {(seasonComplete || reviewOnlyAfterPlayoffs) && reviewWeeks.length > 0 && (
         <div className="fixtures-collapsible">
           <button
             type="button"
@@ -325,7 +342,7 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
         </div>
       )}
 
-      {!seasonComplete && remainingWeeks.length > 0 && (
+      {!seasonComplete && !reviewOnlyAfterPlayoffs && remainingWeeks.length > 0 && (
         <div className="fixtures-collapsible">
           <button
             type="button"

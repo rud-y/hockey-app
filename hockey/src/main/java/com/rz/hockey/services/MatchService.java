@@ -12,6 +12,7 @@ import com.rz.hockey.enums.CompetitionType;
 import com.rz.hockey.enums.StreakType;
 import com.rz.hockey.repositories.LeagueTableRepository;
 import com.rz.hockey.repositories.MatchRepository;
+import com.rz.hockey.repositories.PlayoffBracketRepository;
 import com.rz.hockey.repositories.TableRowRepository;
 import com.rz.hockey.repositories.WeeklyFixtureRepository;
 import org.springframework.http.HttpStatus;
@@ -21,30 +22,84 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class MatchService {
 
-    public static final int MAX_TEAMS = 14;
-    public static final int MIN_TEAMS = 2;
+    public static final int MAX_TEAMS = 32;
+    public static final int MIN_TEAMS = 4;
+    public static final Set<Integer> ALLOWED_TEAM_COUNTS = Set.of(4, 8, 16, 32);
 
     private final LeagueTableRepository leagueTableRepository;
     private final WeeklyFixtureRepository weeklyFixtureRepository;
     private final MatchRepository matchRepository;
     private final TableRowRepository tableRowRepository;
     private final LeagueTableService leagueTableService;
+    private final PlayoffBracketRepository playoffBracketRepository;
 
     public MatchService(
             LeagueTableRepository leagueTableRepository,
             WeeklyFixtureRepository weeklyFixtureRepository,
             MatchRepository matchRepository,
             TableRowRepository tableRowRepository,
-            LeagueTableService leagueTableService) {
+            LeagueTableService leagueTableService,
+            PlayoffBracketRepository playoffBracketRepository) {
         this.leagueTableRepository = leagueTableRepository;
         this.weeklyFixtureRepository = weeklyFixtureRepository;
         this.matchRepository = matchRepository;
         this.tableRowRepository = tableRowRepository;
         this.leagueTableService = leagueTableService;
+        this.playoffBracketRepository = playoffBracketRepository;
+    }
+
+    /**
+     * Top half of the table, rounded up to an even count when needed.
+     * With allowed league sizes 4/8/16/32 this is always half (2/4/8/16).
+     */
+    public static int getPlayoffTeamCount(int totalTeams) {
+        if (totalTeams < 2) {
+            return 0;
+        }
+
+        int playoffSpots = (int) Math.ceil(totalTeams / 2.0);
+        if (playoffSpots % 2 != 0) {
+            playoffSpots += 1;
+        }
+
+        return Math.min(playoffSpots, totalTeams);
+    }
+
+    public static void validateMatchScores(MatchResultRequest request) {
+        validatePeriodScore(request.homeScorePeriod1());
+        validatePeriodScore(request.awayScorePeriod1());
+        validatePeriodScore(request.homeScorePeriod2());
+        validatePeriodScore(request.awayScorePeriod2());
+        validatePeriodScore(request.homeScorePeriod3());
+        validatePeriodScore(request.awayScorePeriod3());
+
+        int homeRegulation = request.homeScorePeriod1() + request.homeScorePeriod2() + request.homeScorePeriod3();
+        int awayRegulation = request.awayScorePeriod1() + request.awayScorePeriod2() + request.awayScorePeriod3();
+        boolean tiedAfterRegulation = homeRegulation == awayRegulation;
+
+        if (tiedAfterRegulation) {
+            boolean validOt = (request.homeScoreOt() == 1 && request.awayScoreOt() == 0)
+                    || (request.homeScoreOt() == 0 && request.awayScoreOt() == 1);
+            if (!validOt) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Overtime score must be 1:0 or 0:1.");
+            }
+        } else if (request.homeScoreOt() != 0 || request.awayScoreOt() != 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Overtime scores are only allowed when regulation ends in a draw.");
+        }
+    }
+
+    private static void validatePeriodScore(int score) {
+        if (score < 0 || score > 3) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Period scores must be between 0 and 3.");
+        }
     }
 
     public FixturesResponse getFixtures(CompetitionType competitionType, String seasonYear) {
@@ -114,6 +169,9 @@ public class MatchService {
                     HttpStatus.BAD_REQUEST, "Complete all matches before playing again.");
         }
 
+        playoffBracketRepository.findBySeasonYear(seasonYear)
+                .ifPresent(playoffBracketRepository::delete);
+
         resetTableRows(leagueTable);
         weeklyFixtureRepository.deleteAll(fixtures);
 
@@ -125,19 +183,10 @@ public class MatchService {
                 .map(TableRow::getTeam)
                 .toList();
 
-        if (teams.size() < MIN_TEAMS) {
+        if (!ALLOWED_TEAM_COUNTS.contains(teams.size())) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "At least 2 teams are required to generate fixtures.");
-        }
-
-        if (teams.size() > MAX_TEAMS) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Maximum of 14 teams allowed.");
-        }
-
-        if (teams.size() % 2 != 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "The league needs to have even number of teams.");
+                    HttpStatus.BAD_REQUEST,
+                    "The league must have 4, 8, 16, or 32 teams to generate fixtures.");
         }
 
         List<List<Team[]>> roundPairings = buildRoundRobinPairings(teams);
@@ -231,7 +280,7 @@ public class MatchService {
                     "Only matches from the current fixture week can be played.");
         }
 
-        validateScores(request);
+        validateMatchScores(request);
 
         match.setHomeScorePeriod1(request.homeScorePeriod1());
         match.setAwayScorePeriod1(request.awayScorePeriod1());
@@ -251,38 +300,6 @@ public class MatchService {
                 leagueTable.getSeasonYear());
 
         return new MatchCompleteResponse(savedMatch, standings);
-    }
-
-    private void validateScores(MatchResultRequest request) {
-        validatePeriodScore(request.homeScorePeriod1());
-        validatePeriodScore(request.awayScorePeriod1());
-        validatePeriodScore(request.homeScorePeriod2());
-        validatePeriodScore(request.awayScorePeriod2());
-        validatePeriodScore(request.homeScorePeriod3());
-        validatePeriodScore(request.awayScorePeriod3());
-
-        int homeRegulation = request.homeScorePeriod1() + request.homeScorePeriod2() + request.homeScorePeriod3();
-        int awayRegulation = request.awayScorePeriod1() + request.awayScorePeriod2() + request.awayScorePeriod3();
-        boolean tiedAfterRegulation = homeRegulation == awayRegulation;
-
-        if (tiedAfterRegulation) {
-            boolean validOt = (request.homeScoreOt() == 1 && request.awayScoreOt() == 0)
-                    || (request.homeScoreOt() == 0 && request.awayScoreOt() == 1);
-            if (!validOt) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "Overtime score must be 1:0 or 0:1.");
-            }
-        } else if (request.homeScoreOt() != 0 || request.awayScoreOt() != 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Overtime scores are only allowed when regulation ends in a draw.");
-        }
-    }
-
-    private void validatePeriodScore(int score) {
-        if (score < 0 || score > 3) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Period scores must be between 0 and 3.");
-        }
     }
 
     private void applyLeagueTableUpdates(Match match, MatchResultRequest request) {

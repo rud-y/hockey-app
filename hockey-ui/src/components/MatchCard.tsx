@@ -5,6 +5,7 @@ import {
   type MatchResultPayload,
   type MatchCompleteResponseProps,
 } from '../interfaces/matchProps'
+import { type PlayoffBracketProps, type PlayoffGameProps } from '../interfaces/playoffProps'
 import { type TableRowProps } from '../interfaces/tableRowProps'
 import {
   BREAK_DURATION_SECONDS,
@@ -15,9 +16,12 @@ import {
 } from '../utils/matchSimulation'
 
 interface MatchCardProps {
-  match: MatchProps
+  match: MatchProps | PlayoffGameProps
   playable: boolean
-  onMatchCompleted: (standings?: TableRowProps[]) => void
+  onMatchCompleted?: (standings?: TableRowProps[]) => void
+  completeUrl?: string
+  onPlayoffCompleted?: (bracket: PlayoffBracketProps) => void
+  lockedMessage?: string
 }
 
 type MatchPhase =
@@ -38,7 +42,14 @@ interface PeriodScores {
   otAway: number
 }
 
-const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted }) => {
+const MatchCard: React.FC<MatchCardProps> = ({
+  match,
+  playable,
+  onMatchCompleted,
+  completeUrl,
+  onPlayoffCompleted,
+  lockedMessage = 'Available in a future fixture week',
+}) => {
   const [scores, setScores] = useState<PeriodScores>({
     home: [match.homeScorePeriod1, match.homeScorePeriod2, match.homeScorePeriod3],
     away: [match.awayScorePeriod1, match.awayScorePeriod2, match.awayScorePeriod3],
@@ -115,7 +126,8 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
       }
 
       try {
-        const response = await fetch(`${API_BASE_URL}/matches/${match.id}/complete`, {
+        const url = completeUrl ?? `${API_BASE_URL}/matches/${match.id}/complete`
+        const response = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -126,12 +138,18 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
           throw new Error(errorBody?.message ?? 'Failed to save match result.')
         }
 
-        const result = (await response.json()) as MatchCompleteResponseProps
+        const result = await response.json()
 
         setAwaitingOvertime(false)
         setPhase('finished')
         setStatusMessage('Match finished')
-        onMatchCompleted(result.standings)
+
+        if (onPlayoffCompleted) {
+          onPlayoffCompleted(result as PlayoffBracketProps)
+        } else {
+          const regularResult = result as MatchCompleteResponseProps
+          onMatchCompleted?.(regularResult.standings)
+        }
       } catch (err) {
         hasSubmittedRef.current = false
         console.error('Error completing match:', err)
@@ -140,7 +158,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
         setIsSubmitting(false)
       }
     },
-    [match.id, match.completed, onMatchCompleted],
+    [match.id, match.completed, onMatchCompleted, completeUrl, onPlayoffCompleted],
   )
 
   const finishMatch = useCallback(
@@ -380,7 +398,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, playable, onMatchCompleted
 
       {statusMessage && <p style={styles.status}>{statusMessage}</p>}
       {!playable && !match.completed && (
-        <p style={styles.lockedText}>Available in a future fixture week</p>
+        <p style={styles.lockedText}>{lockedMessage}</p>
       )}
     </div>
   )

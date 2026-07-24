@@ -54,7 +54,7 @@ public class TeamService {
         if (leagueTable.getRows() != null && leagueTable.getRows().size() >= MatchService.MAX_TEAMS) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Maximum of 14 teams allowed.");
+                    "Maximum of 32 teams allowed.");
         }
 
         if (leagueTable.getRows() != null) {
