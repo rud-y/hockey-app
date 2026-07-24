@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { API_BASE_URL } from '../constants/api'
 import {
   type MatchProps,
@@ -35,11 +35,31 @@ type MatchPhase =
   | 'overtime'
   | 'finished'
 
+type PeriodSlot = '1P' | '2P' | '3P' | 'OT' | null
+
 interface PeriodScores {
   home: [number, number, number]
   away: [number, number, number]
   otHome: number
   otAway: number
+}
+
+const PLAYOFF_NEXT_GAME_DELAY_MS = 3000
+
+const activePeriodSlot = (phase: MatchPhase): PeriodSlot => {
+  if (phase === 'period1' || phase === 'break1') return '1P'
+  if (phase === 'period2' || phase === 'break2') return '2P'
+  if (phase === 'period3' || phase === 'break3') return '3P'
+  if (phase === 'overtime') return 'OT'
+  return null
+}
+
+const isPeriodInProgress = (phase: MatchPhase, slot: PeriodSlot) => {
+  if (slot === '1P') return phase === 'period1'
+  if (slot === '2P') return phase === 'period2'
+  if (slot === '3P') return phase === 'period3'
+  if (slot === 'OT') return phase === 'overtime'
+  return false
 }
 
 const MatchCard: React.FC<MatchCardProps> = ({
@@ -72,6 +92,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
   const handledTickRef = useRef<string | null>(null)
   const hasSubmittedRef = useRef(match.completed)
   const scoresRef = useRef(scores)
+  const playoffDelayRef = useRef<number | null>(null)
 
   useEffect(() => {
     scoresRef.current = scores
@@ -80,6 +101,14 @@ const MatchCard: React.FC<MatchCardProps> = ({
   useEffect(() => {
     hasSubmittedRef.current = match.completed
   }, [match.id, match.completed])
+
+  useEffect(() => {
+    return () => {
+      if (playoffDelayRef.current != null) {
+        window.clearTimeout(playoffDelayRef.current)
+      }
+    }
+  }, [])
 
   const homeRegulation = sumScores(scores.home)
   const awayRegulation = sumScores(scores.away)
@@ -104,6 +133,11 @@ const MatchCard: React.FC<MatchCardProps> = ({
     phase === 'period1' || phase === 'period2' || phase === 'period3' || phase === 'overtime'
   const breakRunning = phase === 'break1' || phase === 'break2' || phase === 'break3'
   const isLive = playable && !isFinished && (periodRunning || breakRunning || isSubmitting)
+  const timerSlot = activePeriodSlot(phase)
+  const showTimer = (periodRunning || breakRunning) && secondsLeft >= 0 && timerSlot != null
+
+  const homeWon = isFinished && homeTotal > awayTotal
+  const awayWon = isFinished && awayTotal > homeTotal
 
   const submitResult = useCallback(
     async (finalScores: PeriodScores) => {
@@ -143,9 +177,13 @@ const MatchCard: React.FC<MatchCardProps> = ({
         setAwaitingOvertime(false)
         setPhase('finished')
         setStatusMessage('Match finished')
+        setIsSubmitting(false)
 
         if (onPlayoffCompleted) {
-          onPlayoffCompleted(result as PlayoffBracketProps)
+          playoffDelayRef.current = window.setTimeout(() => {
+            onPlayoffCompleted(result as PlayoffBracketProps)
+            playoffDelayRef.current = null
+          }, PLAYOFF_NEXT_GAME_DELAY_MS)
         } else {
           const regularResult = result as MatchCompleteResponseProps
           onMatchCompleted?.(regularResult.standings)
@@ -154,7 +192,6 @@ const MatchCard: React.FC<MatchCardProps> = ({
         hasSubmittedRef.current = false
         console.error('Error completing match:', err)
         setStatusMessage(err instanceof Error ? err.message : 'Could not save match result.')
-      } finally {
         setIsSubmitting(false)
       }
     },
@@ -216,7 +253,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
         away: [awayScore, current.away[1], current.away[2]],
       }))
       setCompletedPeriods((current) => [true, current[1], current[2]])
-      setStatusMessage("It's break time")
+      setStatusMessage('Break time')
       setPhase('break1')
       setSecondsLeft(BREAK_DURATION_SECONDS)
       return
@@ -231,7 +268,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
         away: [current.away[0], awayScore, current.away[2]],
       }))
       setCompletedPeriods((current) => [current[0], true, current[2]])
-      setStatusMessage("It's break time")
+      setStatusMessage('Break time')
       setPhase('break2')
       setSecondsLeft(BREAK_DURATION_SECONDS)
       return
@@ -304,7 +341,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
       }
       return
     }
-  }, [phase, secondsLeft, finishMatch, autoPlay])
+  }, [phase, secondsLeft, finishMatch, autoPlay, scores])
 
   const canStartMatch =
     playable &&
@@ -327,6 +364,31 @@ const MatchCard: React.FC<MatchCardProps> = ({
   const formatPeriodScore = (home: number, away: number, completed: boolean) =>
     completed ? `${home}:${away}` : '-'
 
+  const renderPeriodBox = (
+    slot: PeriodSlot,
+    label: string,
+    scoreText: string,
+  ) => {
+    if (!slot) return null
+    const inProgress = isPeriodInProgress(phase, slot)
+    const timerHere = showTimer && timerSlot === slot
+
+    return (
+      <div className="match-period">
+        <div
+          className={`match-period__box${inProgress ? ' match-period__box--active' : ''}`}
+          style={styles.scoreColumn}
+        >
+          <span style={styles.scoreLabel}>{label}</span>
+          <span>{scoreText}</span>
+        </div>
+        <div className="match-period__timer" aria-hidden={!timerHere}>
+          {timerHere ? `${secondsLeft}s` : '\u00A0'}
+        </div>
+      </div>
+    )
+  }
+
   const cardClassName = [
     'match-card',
     isFinished ? 'match-card--finished' : '',
@@ -340,10 +402,14 @@ const MatchCard: React.FC<MatchCardProps> = ({
     <div className={cardClassName} style={styles.card}>
       <div style={styles.header}>
         <div style={styles.teamBlock}>
-          <strong>{match.homeTeam.name}</strong>
+          <strong className={homeWon ? 'match-team-name match-team-name--winner' : 'match-team-name'}>
+            {match.homeTeam.name}
+          </strong>
         </div>
         <div style={styles.teamBlockRight}>
-          <strong>{match.awayTeam.name}</strong>
+          <strong className={awayWon ? 'match-team-name match-team-name--winner' : 'match-team-name'}>
+            {match.awayTeam.name}
+          </strong>
         </div>
       </div>
 
@@ -356,28 +422,29 @@ const MatchCard: React.FC<MatchCardProps> = ({
       </div>
 
       <div style={styles.scoreGrid}>
-        <div style={styles.scoreColumn}>
-          <span style={styles.scoreLabel}>1P</span>
-          <span>{formatPeriodScore(scores.home[0], scores.away[0], completedPeriods[0])}</span>
-        </div>
-        <div style={styles.scoreColumn}>
-          <span style={styles.scoreLabel}>2P</span>
-          <span>{formatPeriodScore(scores.home[1], scores.away[1], completedPeriods[1])}</span>
-        </div>
-        <div style={styles.scoreColumn}>
-          <span style={styles.scoreLabel}>3P</span>
-          <span>{formatPeriodScore(scores.home[2], scores.away[2], completedPeriods[2])}</span>
-        </div>
-        {showOvertime && (
-          <div style={styles.scoreColumn}>
-            <span style={styles.scoreLabel}>OT</span>
-            <span>
-              {scores.otHome > 0 || scores.otAway > 0 || match.completed
-                ? `${scores.otHome}:${scores.otAway}`
-                : '-'}
-            </span>
-          </div>
+        {renderPeriodBox(
+          '1P',
+          '1P',
+          formatPeriodScore(scores.home[0], scores.away[0], completedPeriods[0]),
         )}
+        {renderPeriodBox(
+          '2P',
+          '2P',
+          formatPeriodScore(scores.home[1], scores.away[1], completedPeriods[1]),
+        )}
+        {renderPeriodBox(
+          '3P',
+          '3P',
+          formatPeriodScore(scores.home[2], scores.away[2], completedPeriods[2]),
+        )}
+        {showOvertime &&
+          renderPeriodBox(
+            'OT',
+            'OT',
+            scores.otHome > 0 || scores.otAway > 0 || match.completed
+              ? `${scores.otHome}:${scores.otAway}`
+              : '-',
+          )}
       </div>
 
       <div style={styles.actions}>
@@ -391,12 +458,9 @@ const MatchCard: React.FC<MatchCardProps> = ({
             Play Overtime
           </button>
         )}
-        {(periodRunning || breakRunning) && (
-          <span style={styles.timer}>{secondsLeft}s</span>
-        )}
       </div>
 
-      {statusMessage && <p style={styles.status}>{statusMessage}</p>}
+      {statusMessage && <p className="match-status-text">{statusMessage}</p>}
       {!playable && !match.completed && (
         <p style={styles.lockedText}>{lockedMessage}</p>
       )}
@@ -458,7 +522,7 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))',
     gap: '10px',
-  },
+  } satisfies CSSProperties,
   scoreColumn: {
     display: 'flex',
     flexDirection: 'column' as const,
@@ -468,6 +532,8 @@ const styles = {
     borderRadius: '8px',
     backgroundColor: 'var(--surface-raised)',
     color: 'var(--text-h)',
+    width: '100%',
+    boxSizing: 'border-box' as const,
   },
   scoreLabel: {
     fontSize: '0.75rem',
@@ -501,20 +567,6 @@ const styles = {
     fontSize: '0.9rem',
     fontWeight: 700,
     cursor: 'pointer',
-  },
-  timer: {
-    fontWeight: 700,
-    color: 'var(--green-bright)',
-    fontSize: '0.95rem',
-  },
-  status: {
-    margin: 0,
-    padding: '8px 10px',
-    borderRadius: '8px',
-    backgroundColor: 'var(--warning-bg)',
-    color: 'var(--warning-text)',
-    fontWeight: 600,
-    textAlign: 'center' as const,
   },
   lockedText: {
     margin: 0,

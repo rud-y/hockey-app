@@ -20,6 +20,13 @@ const PlayoffSeriesCard: React.FC<PlayoffSeriesCardProps> = ({
   const nextGame = series.games.find((game) => !game.completed)
   const completedGames = series.games.filter((game) => game.completed)
 
+  const higherIsWinning =
+    series.winner?.id === series.higherSeedTeam.id ||
+    (!series.completed && series.higherSeedWins > series.lowerSeedWins)
+  const lowerIsWinning =
+    series.winner?.id === series.lowerSeedTeam.id ||
+    (!series.completed && series.lowerSeedWins > series.higherSeedWins)
+
   return (
     <article
       className={`playoff-series-card${series.completed ? ' playoff-series-card--complete' : ''}`}
@@ -27,7 +34,9 @@ const PlayoffSeriesCard: React.FC<PlayoffSeriesCardProps> = ({
       <header className="playoff-series-card__header">
         <div className="playoff-series-card__team">
           <span className="playoff-series-card__seed">#{series.higherSeedRank}</span>
-          <strong>{series.higherSeedTeam.name}</strong>
+          <strong className={higherIsWinning ? 'playoff-series-card__name--winning' : undefined}>
+            {series.higherSeedTeam.name}
+          </strong>
           <span className="playoff-series-card__short">({series.higherSeedTeam.shortName})</span>
         </div>
         <div className="playoff-series-card__score" aria-label="Series score">
@@ -37,7 +46,9 @@ const PlayoffSeriesCard: React.FC<PlayoffSeriesCardProps> = ({
         </div>
         <div className="playoff-series-card__team playoff-series-card__team--right">
           <span className="playoff-series-card__seed">#{series.lowerSeedRank}</span>
-          <strong>{series.lowerSeedTeam.name}</strong>
+          <strong className={lowerIsWinning ? 'playoff-series-card__name--winning' : undefined}>
+            {series.lowerSeedTeam.name}
+          </strong>
           <span className="playoff-series-card__short">({series.lowerSeedTeam.shortName})</span>
         </div>
       </header>
@@ -50,7 +61,7 @@ const PlayoffSeriesCard: React.FC<PlayoffSeriesCardProps> = ({
 
       {completedGames.length > 0 && (
         <ul className="playoff-series-card__results">
-          {completedGames.map((game) => {
+          {[...completedGames].reverse().map((game) => {
             const totals = gameTotalScore(game)
             return (
               <li key={game.id}>

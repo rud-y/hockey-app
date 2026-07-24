@@ -25,7 +25,11 @@ const PlayoffsPanel: React.FC<PlayoffsPanelProps> = ({
   const currentRoundSeries = bracket.series.filter(
     (series) => series.roundNumber === bracket.currentRound,
   )
-  const pastRounds = Array.from({ length: bracket.currentRound - 1 }, (_, i) => i + 1)
+  const pastRounds = Array.from({ length: bracket.currentRound - 1 }, (_, i) => i + 1).reverse()
+  const completedRoundsDescending = Array.from(
+    { length: bracket.totalRounds },
+    (_, i) => bracket.totalRounds - i,
+  )
 
   const handleRestart = async () => {
     setError(null)
@@ -134,10 +138,7 @@ const PlayoffsPanel: React.FC<PlayoffsPanelProps> = ({
 
       {(playoffsComplete || pastRounds.length > 0) && (
         <div className="playoffs-history">
-          {(playoffsComplete
-            ? Array.from({ length: bracket.totalRounds }, (_, i) => i + 1)
-            : pastRounds
-          ).map((roundNumber) => {
+          {(playoffsComplete ? completedRoundsDescending : pastRounds).map((roundNumber) => {
             const roundSeries = bracket.series.filter((s) => s.roundNumber === roundNumber)
             return (
               <section key={roundNumber} className="playoffs-round playoffs-round--past">

@@ -94,7 +94,11 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
   const completedInWeek = actualCurrentWeek ? countCompletedMatches(actualCurrentWeek) : 0
   const totalInWeek = actualCurrentWeek?.matches.length ?? 0
 
-  const reviewWeeks = seasonComplete || reviewOnlyAfterPlayoffs ? fixtures : pastWeeks
+  const pastWeeksDescending = [...pastWeeks].sort((a, b) => b.weekNumber - a.weekNumber)
+  const reviewWeeks = [...(seasonComplete || reviewOnlyAfterPlayoffs ? fixtures : pastWeeks)].sort(
+    (a, b) => b.weekNumber - a.weekNumber,
+  )
+  const remainingWeeksSorted = [...remainingWeeks].sort((a, b) => b.weekNumber - a.weekNumber)
   const reviewToggleLabel = seasonComplete || reviewOnlyAfterPlayoffs
     ? pastExpanded
       ? 'Close all fixtures'
@@ -342,6 +346,29 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
         </div>
       )}
 
+      {!seasonComplete &&
+        !reviewOnlyAfterPlayoffs &&
+        pastWeeksDescending.length > 0 && (
+        <div className="fixtures-collapsible">
+          <button
+            type="button"
+            className="fixtures-collapsible__toggle"
+            onClick={() => setPastExpanded((expanded) => !expanded)}
+            aria-expanded={pastExpanded}
+          >
+            {pastExpanded ? 'Close past fixtures' : 'Expand past fixtures'}
+          </button>
+
+          <div
+            className={`fixtures-collapsible__content${pastExpanded ? ' fixtures-collapsible__content--open' : ''}`}
+          >
+            <div className="fixtures-collapsible__inner">
+              {pastWeeksDescending.map((fixture) => renderWeekSection(fixture, false, true))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {!seasonComplete && !reviewOnlyAfterPlayoffs && remainingWeeks.length > 0 && (
         <div className="fixtures-collapsible">
           <button
@@ -357,7 +384,7 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
             className={`fixtures-collapsible__content${remainingExpanded ? ' fixtures-collapsible__content--open' : ''}`}
           >
             <div className="fixtures-collapsible__inner">
-              {remainingWeeks.map((fixture) => renderWeekSection(fixture, false, true))}
+              {remainingWeeksSorted.map((fixture) => renderWeekSection(fixture, false, true))}
             </div>
           </div>
         </div>

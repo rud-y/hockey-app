@@ -187,7 +187,7 @@
   }
 }
 
-/* ── Fixtures panel ── */
+/* Fixtures panel */
 
 .fixtures-panel {
   width: 100%;
@@ -527,11 +527,94 @@
   }
   50% {
     border-color: var(--green-bright);
-    box-shadow: 0 0 0 4px var(--green-glow);
+    box-shadow: 0 0 0 8px var(--green-glow);
   }
 }
 
-/* ── Playoffs panel ── */
+.match-period {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.match-period__box {
+  transition: background-color 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  border: 1px solid transparent;
+}
+
+.match-period__box--active {
+  background-color: var(--green-bg) !important;
+  border-color: var(--green-border);
+  box-shadow: inset 0 0 0 1px var(--green-glow);
+}
+
+.match-period__timer {
+  min-height: 1.1em;
+  font-weight: 700;
+  color: var(--green-bright);
+  font-size: 0.9rem;
+  line-height: 1.1;
+}
+
+.match-status-text {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--warning-text);
+  font-weight: 600;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+@property --snake-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.match-team-name {
+  position: relative;
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  z-index: 0;
+}
+
+.match-team-name--winner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--snake-angle),
+    var(--green) 0%,
+    transparent 100%,
+    transparent 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: -1;
+  box-shadow: 0 1px 3px rgba(34, 197, 94, 0.2);
+  animation: match-snake-border 3.2s linear infinite;
+}
+
+@keyframes match-snake-border {
+  to {
+    --snake-angle: 360deg;
+  }
+}
+
+/* Playoffs panel */
 
 .playoffs-panel {
   width: 100%;
@@ -682,6 +765,10 @@
 .playoff-series-card__short {
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.playoff-series-card__name--winning {
+  color: var(--green-bright);
 }
 
 .playoff-series-card__score {
