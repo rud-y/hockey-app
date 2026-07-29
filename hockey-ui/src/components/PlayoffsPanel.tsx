@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
 import { type PlayoffBracketProps } from '../interfaces/playoffProps'
+import { celebrateStanleyCup } from '../utils/confetti'
 import { getRoundLabel } from '../utils/playoffs'
 import PlayoffSeriesCard from './PlayoffSeriesCard'
 
@@ -20,8 +21,10 @@ const PlayoffsPanel: React.FC<PlayoffsPanelProps> = ({
   const [isRestarting, setIsRestarting] = useState(false)
   const [isScratching, setIsScratching] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
+  const [championFlash, setChampionFlash] = useState(false)
   const playoffsComplete = bracket.status === 'COMPLETED'
+  const wasCompleteRef = useRef(playoffsComplete)
+
   const currentRoundSeries = bracket.series.filter(
     (series) => series.roundNumber === bracket.currentRound,
   )
@@ -30,6 +33,24 @@ const PlayoffsPanel: React.FC<PlayoffsPanelProps> = ({
     { length: bracket.totalRounds },
     (_, i) => bracket.totalRounds - i,
   )
+
+  useEffect(() => {
+    const justCompleted = playoffsComplete && !wasCompleteRef.current && bracket.champion
+    wasCompleteRef.current = playoffsComplete
+
+    if (!justCompleted || !bracket.champion) {
+      return
+    }
+
+    setChampionFlash(true)
+    const stopConfetti = celebrateStanleyCup(3000)
+    const flashTimer = window.setTimeout(() => setChampionFlash(false), 3000)
+
+    return () => {
+      window.clearTimeout(flashTimer)
+      stopConfetti()
+    }
+  }, [playoffsComplete, bracket.champion])
 
   const handleRestart = async () => {
     setError(null)
@@ -47,6 +68,7 @@ const PlayoffsPanel: React.FC<PlayoffsPanelProps> = ({
         const errorBody = await response.json().catch(() => null)
         throw new Error(errorBody?.message ?? 'Failed to restart the season.')
       }
+      wasCompleteRef.current = false
       onRestartSeason()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not restart the season.')
@@ -71,6 +93,7 @@ const PlayoffsPanel: React.FC<PlayoffsPanelProps> = ({
         const errorBody = await response.json().catch(() => null)
         throw new Error(errorBody?.message ?? 'Failed to start from scratch.')
       }
+      wasCompleteRef.current = false
       onStartFromScratch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not reset the league.')
@@ -91,7 +114,10 @@ const PlayoffsPanel: React.FC<PlayoffsPanelProps> = ({
       </div>
 
       {playoffsComplete && bracket.champion && (
-        <div className="playoffs-champion" role="status">
+        <div
+          className={`playoffs-champion${championFlash ? ' playoffs-champion--flash' : ''}`}
+          role="status"
+        >
           <p className="playoffs-champion__message">
             {bracket.champion.name} are the Stanley Cup champions {bracket.seasonYear}!
           </p>

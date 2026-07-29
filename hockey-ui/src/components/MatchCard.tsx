@@ -37,14 +37,14 @@ type MatchPhase =
 
 type PeriodSlot = '1P' | '2P' | '3P' | 'OT' | null
 
+const PLAYOFF_SERIES_UPDATE_DELAY_MS = 1000
+
 interface PeriodScores {
   home: [number, number, number]
   away: [number, number, number]
   otHome: number
   otAway: number
 }
-
-const PLAYOFF_NEXT_GAME_DELAY_MS = 3000
 
 const activePeriodSlot = (phase: MatchPhase): PeriodSlot => {
   if (phase === 'period1' || phase === 'break1') return '1P'
@@ -183,7 +183,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
           playoffDelayRef.current = window.setTimeout(() => {
             onPlayoffCompleted(result as PlayoffBracketProps)
             playoffDelayRef.current = null
-          }, PLAYOFF_NEXT_GAME_DELAY_MS)
+          }, PLAYOFF_SERIES_UPDATE_DELAY_MS)
         } else {
           const regularResult = result as MatchCompleteResponseProps
           onMatchCompleted?.(regularResult.standings)
@@ -364,11 +364,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
   const formatPeriodScore = (home: number, away: number, completed: boolean) =>
     completed ? `${home}:${away}` : '-'
 
-  const renderPeriodBox = (
-    slot: PeriodSlot,
-    label: string,
-    scoreText: string,
-  ) => {
+  const renderPeriodBox = (slot: PeriodSlot, label: string, scoreText: string) => {
     if (!slot) return null
     const inProgress = isPeriodInProgress(phase, slot)
     const timerHere = showTimer && timerSlot === slot

@@ -72,8 +72,10 @@ const FixturesPanel: React.FC<FixturesPanelProps> = ({
       return
     }
 
+    // Keep the visible week in sync on first load / refresh without interrupting week-advance fades.
     if (prevActiveWeek.current === fixturesData.activeWeekNumber) {
       setVisibleWeekNumber(fixturesData.activeWeekNumber)
+      setWeekFade((current) => (current === 'out' ? 'in' : current))
     }
   }, [fixturesData])
 

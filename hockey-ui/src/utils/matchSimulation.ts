@@ -1,7 +1,7 @@
 export const MAX_TEAMS = 32
 export const ALLOWED_TEAM_COUNTS = [4, 8, 16, 32] as const
 export const PERIOD_DURATION_SECONDS = 3
-export const BREAK_DURATION_SECONDS = 3
+export const BREAK_DURATION_SECONDS = 2
 
 export const randomPeriodScore = () => Math.floor(Math.random() * 4)
 

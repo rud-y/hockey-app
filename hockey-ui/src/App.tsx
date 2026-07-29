@@ -76,6 +76,14 @@ function App() {
       .catch((err) => console.error('Error fetching playoffs:', err))
   }, [])
 
+  const handleFixturesGenerated = useCallback((fixtures?: FixturesResponseProps) => {
+    if (fixtures && fixtures.fixtures.length > 0) {
+      setFixturesData(fixtures)
+      return
+    }
+    loadFixtures()
+  }, [loadFixtures])
+
   const handleMatchCompleted = useCallback((standingsFromMatch?: TableRowProps[]) => {
     if (standingsFromMatch) {
       setStandings(standingsFromMatch)
@@ -132,7 +140,7 @@ function App() {
             onTeamCreated={loadStandings}
             existingRows={standings}
             fixturesGenerated={(fixturesData?.fixtures.length ?? 0) > 0}
-            onFixturesGenerated={loadFixtures}
+            onFixturesGenerated={handleFixturesGenerated}
           />
         )}
         <LeagueTable

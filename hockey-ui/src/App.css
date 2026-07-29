@@ -568,50 +568,16 @@
   font-size: 0.9rem;
 }
 
-@property --snake-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 .match-team-name {
-  position: relative;
   display: inline-block;
   padding: 4px 8px;
   border-radius: 6px;
-  z-index: 0;
 }
 
-.match-team-name--winner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from var(--snake-angle),
-    var(--green) 0%,
-    transparent 100%,
-    transparent 100%
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-  z-index: -1;
-  box-shadow: 0 1px 3px rgba(34, 197, 94, 0.2);
-  animation: match-snake-border 3.2s linear infinite;
-}
-
-@keyframes match-snake-border {
-  to {
-    --snake-angle: 360deg;
-  }
+.match-team-name--winner {
+  background-color: var(--green-bg);
+  color: var(--green-bright);
+  border: 1px solid var(--green-border);
 }
 
 /* Playoffs panel */
@@ -649,22 +615,43 @@
 }
 
 .playoffs-champion {
-  padding: 20px;
+  padding: 28px 24px;
   border-radius: 12px;
   background: var(--playoff-blue-bg);
-  border: 1px solid var(--playoff-blue-border);
+  border: 2px solid var(--playoff-blue-border);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   align-items: center;
   text-align: center;
 }
 
+.playoffs-champion--flash {
+  animation: stanley-cup-flash 0.75s ease-in-out 4;
+}
+
+@keyframes stanley-cup-flash {
+  0%,
+  100% {
+    background: var(--playoff-blue-bg);
+    border-color: var(--playoff-blue-border);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    background: rgba(96, 165, 250, 0.35);
+    border-color: var(--playoff-cut-line);
+    box-shadow: 0 0 32px rgba(96, 165, 250, 0.55);
+  }
+}
+
 .playoffs-champion__message {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--playoff-blue);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--playoff-cut-line);
+  text-shadow: 0 2px 12px rgba(96, 165, 250, 0.35);
 }
 
 .playoffs-champion__actions {

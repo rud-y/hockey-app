@@ -30,7 +30,7 @@ public class TeamController {
           @RequestParam(required = false) CompetitionType competitionType,
           @RequestParam(required = false) String seasonYear) {
 
-    // If parametersprovided, filter teams by competition
+    // If parameters provided, filter teams by competition
     if (competitionType != null && seasonYear != null) {
       List<Team> filteredTeams = leagueTableService.getTeamsByCompetition(competitionType, seasonYear);
       return ResponseEntity.ok(filteredTeams);

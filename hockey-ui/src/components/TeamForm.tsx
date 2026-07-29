@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
+import { type FixturesResponseProps } from '../interfaces/matchProps'
 import { type TableRowProps } from '../interfaces/tableRowProps'
 import { MAX_TEAMS, ALLOWED_TEAM_COUNTS } from '../utils/matchSimulation'
 
@@ -7,7 +8,7 @@ interface TeamFormProps {
   onTeamCreated: () => void
   existingRows: TableRowProps[]
   fixturesGenerated: boolean
-  onFixturesGenerated: () => void
+  onFixturesGenerated: (fixtures?: FixturesResponseProps) => void
 }
 
 const EMPTY_PLAYERS = ['', '', '', '', '']
@@ -124,12 +125,21 @@ const TeamForm: React.FC<TeamFormProps> = ({
         }),
       })
 
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => null)
-        throw new Error(errorBody?.message ?? 'Failed to generate fixtures.')
+      if (response.status === 409) {
+        // Fixtures already exist on the server — load them into the UI.
+        onFixturesGenerated()
+        return
       }
 
-      onFixturesGenerated()
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(
+          errorBody?.message ?? errorBody?.detail ?? 'Failed to generate fixtures.',
+        )
+      }
+
+      const data = await response.json()
+      onFixturesGenerated(data)
     } catch (err) {
       console.error('Error generating fixtures:', err)
       setError(err instanceof Error ? err.message : 'Could not generate fixtures.')

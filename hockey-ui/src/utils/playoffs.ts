@@ -1,10 +1,7 @@
 import { type TableRowProps } from '../interfaces/tableRowProps'
 
 /**
- * Number of teams that advance to the Playoffs after the regular season.
- * Takes the top half of the table, then adds one when that count is odd
- * so an even number of teams enter the Playoffs.
- *
+ * Half of the teams advance to the Playoffs after the regular season.
  * With allowed league sizes 4 / 8 / 16 / 32 this is always half (2 / 4 / 8 / 16).
  */
 export function getPlayoffTeamCount(totalTeams: number): number {
@@ -20,7 +17,7 @@ export function getPlayoffTeamCount(totalTeams: number): number {
   return Math.min(playoffSpots, totalTeams)
 }
 
-/** Standings order used for the league table and playoff seeding. */
+// Standings order used for the league table and playoff seeding
 export function compareStandingsRows(a: TableRowProps, b: TableRowProps): number {
   return (
     b.points - a.points ||
