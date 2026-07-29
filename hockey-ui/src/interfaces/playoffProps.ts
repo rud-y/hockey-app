@@ -1,4 +1,5 @@
 import { type TeamProps } from './teamProps'
+import { type GoalEventProps } from '../utils/goalEvents'
 
 export interface PlayoffGameProps {
   id: number
@@ -14,6 +15,7 @@ export interface PlayoffGameProps {
   awayScorePeriod3: number
   homeScoreOt: number
   awayScoreOt: number
+  goals?: GoalEventProps[]
 }
 
 export interface PlayoffSeriesProps {

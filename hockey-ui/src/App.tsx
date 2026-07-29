@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 import FixturesPanel from './components/FixturesPanel'
 import LeagueTable from './components/LeagueTable'
+import PlayersStatsTable from './components/PlayersStatsTable'
 import PlayoffsPanel from './components/PlayoffsPanel'
 import TeamForm from './components/TeamForm'
 import { API_BASE_URL, LEAGUE_CONFIG } from './constants/api'
@@ -13,6 +14,8 @@ function App() {
   const [standings, setStandings] = useState<TableRowProps[]>([])
   const [fixturesData, setFixturesData] = useState<FixturesResponseProps | null>(null)
   const [playoffs, setPlayoffs] = useState<PlayoffBracketProps | null>(null)
+  const [showPlayerStats, setShowPlayerStats] = useState(false)
+  const [playerStatsKey, setPlayerStatsKey] = useState(0)
 
   const loadStandings = useCallback(() => {
     const params = new URLSearchParams({
@@ -91,6 +94,7 @@ function App() {
       loadStandings()
     }
     loadFixtures()
+    setPlayerStatsKey((key) => key + 1)
   }, [loadStandings, loadFixtures])
 
   const handleSeasonRestarted = useCallback(() => {
@@ -98,15 +102,23 @@ function App() {
     loadStandings()
     loadFixtures()
     loadPlayoffs()
+    setPlayerStatsKey((key) => key + 1)
   }, [loadStandings, loadFixtures, loadPlayoffs])
 
   const handleStartFromScratch = useCallback(() => {
     setPlayoffs(null)
     setFixturesData(null)
+    setShowPlayerStats(false)
     loadStandings()
     loadFixtures()
     loadPlayoffs()
+    setPlayerStatsKey((key) => key + 1)
   }, [loadStandings, loadFixtures, loadPlayoffs])
+
+  const handlePlayoffsUpdated = useCallback((bracket: PlayoffBracketProps) => {
+    setPlayoffs(bracket)
+    setPlayerStatsKey((key) => key + 1)
+  }, [])
 
   useEffect(() => {
     loadStandings()
@@ -151,10 +163,21 @@ function App() {
           onRowDeleted={loadStandings}
           onPlayoffsStarted={loadPlayoffs}
         />
+        <div className="players-stats-toggle">
+          <button
+            type="button"
+            className="players-stats-toggle__button"
+            onClick={() => setShowPlayerStats((open) => !open)}
+            aria-expanded={showPlayerStats}
+          >
+            {showPlayerStats ? 'Hide Players stats table' : 'Players stats table'}
+          </button>
+          {showPlayerStats && <PlayersStatsTable refreshKey={playerStatsKey} />}
+        </div>
         {playoffs && (
           <PlayoffsPanel
             bracket={playoffs}
-            onBracketUpdated={setPlayoffs}
+            onBracketUpdated={handlePlayoffsUpdated}
             onRestartSeason={handleSeasonRestarted}
             onStartFromScratch={handleStartFromScratch}
           />

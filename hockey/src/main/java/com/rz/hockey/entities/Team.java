@@ -17,7 +17,7 @@ public class Team {
     @Column
     private String shortName;
 
-    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "team", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonIgnoreProperties("team")
     private List<Player> players = new ArrayList<>();
 

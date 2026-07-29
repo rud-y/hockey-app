@@ -557,6 +557,94 @@
   line-height: 1.1;
 }
 
+.match-period__goals {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.35;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.players-stats-toggle {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.players-stats-toggle__button {
+  align-self: flex-start;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--text-h);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.players-stats {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+
+.players-stats__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.players-stats__table th,
+.players-stats__table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+  color: var(--text-h);
+}
+
+.players-stats__table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.players-stats__table th:nth-child(n + 3),
+.players-stats__table td:nth-child(n + 3) {
+  text-align: center;
+}
+
+.players-stats__name {
+  font-weight: 600;
+}
+
+.players-stats__empty,
+.players-stats__error {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.players-stats__empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.players-stats__error {
+  color: var(--danger);
+}
+
 .match-status-text {
   margin: 0;
   padding: 0;

@@ -1,5 +1,6 @@
 import { type TeamProps } from './teamProps'
 import { type TableRowProps } from './tableRowProps'
+import { type GoalEventPayload, type GoalEventProps } from '../utils/goalEvents'
 
 export interface MatchProps {
   id: number
@@ -14,6 +15,7 @@ export interface MatchProps {
   awayScorePeriod3: number
   homeScoreOt: number
   awayScoreOt: number
+  goals?: GoalEventProps[]
 }
 
 export interface WeeklyFixtureProps {
@@ -37,6 +39,7 @@ export interface MatchResultPayload {
   awayScorePeriod3: number
   homeScoreOt: number
   awayScoreOt: number
+  goals: GoalEventPayload[]
 }
 
 export interface MatchCompleteResponseProps {

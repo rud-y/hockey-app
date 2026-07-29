@@ -1,6 +1,6 @@
 package com.rz.hockey.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 @Entity
@@ -14,6 +14,7 @@ public class Player {
     private String name;
 
     @ManyToOne
+    @JsonIgnoreProperties({"players", "hibernateLazyInitializer", "handler"})
     private Team team;
 
     public Player() {}
@@ -21,6 +22,10 @@ public class Player {
     public Player(String name, Team team) {
         this.name = name;
         this.team = team;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getName() {
@@ -34,6 +39,7 @@ public class Player {
     public void setName(String name) {
         this.name = name;
     }
+
     public void setTeam(Team team) {
         this.team = team;
     }

@@ -8,6 +8,15 @@ import {
 import { type PlayoffBracketProps, type PlayoffGameProps } from '../interfaces/playoffProps'
 import { type TableRowProps } from '../interfaces/tableRowProps'
 import {
+  assignPeriodGoals,
+  apiPeriodToSlot,
+  formatGoalLine,
+  periodSlotToApi,
+  resolveGoalDisplay,
+  type GoalEventPayload,
+  type GoalEventProps,
+} from '../utils/goalEvents'
+import {
   BREAK_DURATION_SECONDS,
   PERIOD_DURATION_SECONDS,
   randomOvertimeScore,
@@ -44,6 +53,19 @@ interface PeriodScores {
   away: [number, number, number]
   otHome: number
   otAway: number
+}
+
+const goalsFromMatch = (match: MatchProps | PlayoffGameProps): GoalEventPayload[] => {
+  if (!('goals' in match) || !match.goals) return []
+  return match.goals
+    .map((g: GoalEventProps) => ({
+      period: g.period,
+      teamId: g.team.id!,
+      scorerId: g.scorer.id!,
+      assistId: g.assist?.id ?? null,
+      minute: g.minute,
+    }))
+    .filter((g) => g.teamId && g.scorerId)
 }
 
 const activePeriodSlot = (phase: MatchPhase): PeriodSlot => {
@@ -89,14 +111,20 @@ const MatchCard: React.FC<MatchCardProps> = ({
     match.completed ? 'Match finished' : null,
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [goalEvents, setGoalEvents] = useState<GoalEventPayload[]>(() => goalsFromMatch(match))
   const handledTickRef = useRef<string | null>(null)
   const hasSubmittedRef = useRef(match.completed)
   const scoresRef = useRef(scores)
+  const goalsRef = useRef(goalEvents)
   const playoffDelayRef = useRef<number | null>(null)
 
   useEffect(() => {
     scoresRef.current = scores
   }, [scores])
+
+  useEffect(() => {
+    goalsRef.current = goalEvents
+  }, [goalEvents])
 
   useEffect(() => {
     hasSubmittedRef.current = match.completed
@@ -157,6 +185,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
         awayScorePeriod3: finalScores.away[2],
         homeScoreOt: finalScores.otHome,
         awayScoreOt: finalScores.otAway,
+        goals: goalsRef.current,
       }
 
       try {
@@ -252,6 +281,11 @@ const MatchCard: React.FC<MatchCardProps> = ({
         home: [homeScore, current.home[1], current.home[2]],
         away: [awayScore, current.away[1], current.away[2]],
       }))
+      const periodGoals = [
+        ...assignPeriodGoals(match.homeTeam, homeScore, periodSlotToApi('1P')),
+        ...assignPeriodGoals(match.awayTeam, awayScore, periodSlotToApi('1P')),
+      ]
+      setGoalEvents((current) => [...current, ...periodGoals])
       setCompletedPeriods((current) => [true, current[1], current[2]])
       setStatusMessage('Break time')
       setPhase('break1')
@@ -267,6 +301,11 @@ const MatchCard: React.FC<MatchCardProps> = ({
         home: [current.home[0], homeScore, current.home[2]],
         away: [current.away[0], awayScore, current.away[2]],
       }))
+      const periodGoals = [
+        ...assignPeriodGoals(match.homeTeam, homeScore, periodSlotToApi('2P')),
+        ...assignPeriodGoals(match.awayTeam, awayScore, periodSlotToApi('2P')),
+      ]
+      setGoalEvents((current) => [...current, ...periodGoals])
       setCompletedPeriods((current) => [current[0], true, current[2]])
       setStatusMessage('Break time')
       setPhase('break2')
@@ -294,6 +333,12 @@ const MatchCard: React.FC<MatchCardProps> = ({
       }
 
       setScores(nextScores)
+      const periodGoals = [
+        ...assignPeriodGoals(match.homeTeam, homeScore, periodSlotToApi('3P')),
+        ...assignPeriodGoals(match.awayTeam, awayScore, periodSlotToApi('3P')),
+      ]
+      setGoalEvents((current) => [...current, ...periodGoals])
+      goalsRef.current = [...goalsRef.current, ...periodGoals]
       setCompletedPeriods([true, true, true])
 
       if (sumScores(nextHome) === sumScores(nextAway)) {
@@ -316,6 +361,12 @@ const MatchCard: React.FC<MatchCardProps> = ({
       }
 
       setScores(nextScores)
+      const periodGoals = [
+        ...assignPeriodGoals(match.homeTeam, otScore.home, periodSlotToApi('OT')),
+        ...assignPeriodGoals(match.awayTeam, otScore.away, periodSlotToApi('OT')),
+      ]
+      setGoalEvents((current) => [...current, ...periodGoals])
+      goalsRef.current = [...goalsRef.current, ...periodGoals]
       finishMatch(nextScores)
       return
     }
@@ -341,7 +392,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
       }
       return
     }
-  }, [phase, secondsLeft, finishMatch, autoPlay, scores])
+  }, [phase, secondsLeft, finishMatch, autoPlay, scores, match.homeTeam, match.awayTeam])
 
   const canStartMatch =
     playable &&
@@ -369,6 +420,15 @@ const MatchCard: React.FC<MatchCardProps> = ({
     const inProgress = isPeriodInProgress(phase, slot)
     const timerHere = showTimer && timerSlot === slot
 
+    const goalLines: string[] =
+      match.completed && 'goals' in match && match.goals
+        ? match.goals
+            .filter((g) => apiPeriodToSlot(g.period) === slot)
+            .map((g) => formatGoalLine(g.team.shortName, g.scorer.name, g.assist?.name))
+        : goalEvents
+            .filter((g) => g.period === periodSlotToApi(slot))
+            .map((g) => resolveGoalDisplay(g, match.homeTeam, match.awayTeam))
+
     return (
       <div className="match-period">
         <div
@@ -381,6 +441,13 @@ const MatchCard: React.FC<MatchCardProps> = ({
         <div className="match-period__timer" aria-hidden={!timerHere}>
           {timerHere ? `${secondsLeft}s` : '\u00A0'}
         </div>
+        {goalLines.length > 0 && (
+          <div className="match-period__goals">
+            {goalLines.map((line, index) => (
+              <div key={`${slot}-${index}`}>{line}</div>
+            ))}
+          </div>
+        )}
       </div>
     )
   }

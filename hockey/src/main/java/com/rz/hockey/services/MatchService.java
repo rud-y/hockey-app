@@ -37,6 +37,7 @@ public class MatchService {
     private final TableRowRepository tableRowRepository;
     private final LeagueTableService leagueTableService;
     private final PlayoffBracketRepository playoffBracketRepository;
+    private final GoalEventService goalEventService;
 
     public MatchService(
             LeagueTableRepository leagueTableRepository,
@@ -44,13 +45,15 @@ public class MatchService {
             MatchRepository matchRepository,
             TableRowRepository tableRowRepository,
             LeagueTableService leagueTableService,
-            PlayoffBracketRepository playoffBracketRepository) {
+            PlayoffBracketRepository playoffBracketRepository,
+            GoalEventService goalEventService) {
         this.leagueTableRepository = leagueTableRepository;
         this.weeklyFixtureRepository = weeklyFixtureRepository;
         this.matchRepository = matchRepository;
         this.tableRowRepository = tableRowRepository;
         this.leagueTableService = leagueTableService;
         this.playoffBracketRepository = playoffBracketRepository;
+        this.goalEventService = goalEventService;
     }
 
     /**
@@ -298,6 +301,8 @@ public class MatchService {
         match.setHomeScoreOt(request.homeScoreOt());
         match.setAwayScoreOt(request.awayScoreOt());
         match.setCompleted(true);
+
+        goalEventService.attachGoalsToMatch(match, request.goals());
 
         applyLeagueTableUpdates(match, request);
         Match savedMatch = matchRepository.save(match);

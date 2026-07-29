@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 public class PlayoffGame {
 
@@ -19,11 +22,11 @@ public class PlayoffGame {
     private int gameNumber;
 
     @ManyToOne(optional = false)
-    @JsonIgnoreProperties({"players", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Team homeTeam;
 
     @ManyToOne(optional = false)
-    @JsonIgnoreProperties({"players", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Team awayTeam;
 
     @Column(nullable = false)
@@ -53,6 +56,10 @@ public class PlayoffGame {
     @Column
     private int awayScoreOt;
 
+    @OneToMany(mappedBy = "playoffGame", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties("playoffGame")
+    private List<GoalEvent> goals = new ArrayList<>();
+
     public PlayoffGame() {}
 
     public PlayoffGame(int gameNumber, Team homeTeam, Team awayTeam) {
@@ -60,6 +67,11 @@ public class PlayoffGame {
         this.homeTeam = homeTeam;
         this.awayTeam = awayTeam;
         this.completed = false;
+    }
+
+    public void addGoal(GoalEvent goal) {
+        goals.add(goal);
+        goal.setPlayoffGame(this);
     }
 
     public Long getId() {
@@ -116,6 +128,10 @@ public class PlayoffGame {
 
     public int getAwayScoreOt() {
         return awayScoreOt;
+    }
+
+    public List<GoalEvent> getGoals() {
+        return goals;
     }
 
     public void setSeries(PlayoffSeries series) {

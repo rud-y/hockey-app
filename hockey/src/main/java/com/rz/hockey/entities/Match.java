@@ -16,11 +16,11 @@ public class Match {
     private Long id;
 
     @ManyToOne(optional = false)
-    @JsonIgnoreProperties({"players", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Team homeTeam;
 
     @ManyToOne(optional = false)
-    @JsonIgnoreProperties({"players", "hibernateLazyInitializer", "handler"})
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Team awayTeam;
 
     @ManyToOne(optional = false)
@@ -54,7 +54,7 @@ public class Match {
     @Column
     private int awayScoreOt;
 
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnoreProperties("match")
     private List<GoalEvent> goals = new ArrayList<>();
 
@@ -64,6 +64,11 @@ public class Match {
         this.homeTeam = homeTeam;
         this.awayTeam = awayTeam;
         this.completed = false;
+    }
+
+    public void addGoal(GoalEvent goal) {
+        goals.add(goal);
+        goal.setMatch(this);
     }
 
     public Long getId() {

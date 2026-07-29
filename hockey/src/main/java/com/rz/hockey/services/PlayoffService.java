@@ -37,6 +37,7 @@ public class PlayoffService {
     private final TableRowRepository tableRowRepository;
     private final TeamRepository teamRepository;
     private final LeagueTableService leagueTableService;
+    private final GoalEventService goalEventService;
 
     public PlayoffService(
             PlayoffBracketRepository playoffBracketRepository,
@@ -45,7 +46,8 @@ public class PlayoffService {
             WeeklyFixtureRepository weeklyFixtureRepository,
             TableRowRepository tableRowRepository,
             TeamRepository teamRepository,
-            LeagueTableService leagueTableService) {
+            LeagueTableService leagueTableService,
+            GoalEventService goalEventService) {
         this.playoffBracketRepository = playoffBracketRepository;
         this.playoffGameRepository = playoffGameRepository;
         this.leagueTableRepository = leagueTableRepository;
@@ -53,6 +55,7 @@ public class PlayoffService {
         this.tableRowRepository = tableRowRepository;
         this.teamRepository = teamRepository;
         this.leagueTableService = leagueTableService;
+        this.goalEventService = goalEventService;
     }
 
     public Optional<PlayoffBracket> getBracket(String seasonYear) {
@@ -145,6 +148,8 @@ public class PlayoffService {
         game.setHomeScoreOt(request.homeScoreOt());
         game.setAwayScoreOt(request.awayScoreOt());
         game.setCompleted(true);
+
+        goalEventService.attachGoalsToPlayoffGame(game, request.goals());
 
         int homeRegulation = request.homeScorePeriod1() + request.homeScorePeriod2() + request.homeScorePeriod3();
         int awayRegulation = request.awayScorePeriod1() + request.awayScorePeriod2() + request.awayScorePeriod3();

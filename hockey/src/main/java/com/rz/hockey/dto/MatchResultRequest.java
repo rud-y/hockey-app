@@ -1,5 +1,7 @@
 package com.rz.hockey.dto;
 
+import java.util.List;
+
 public record MatchResultRequest(
         int homeScorePeriod1,
         int awayScorePeriod1,
@@ -8,5 +10,12 @@ public record MatchResultRequest(
         int homeScorePeriod3,
         int awayScorePeriod3,
         int homeScoreOt,
-        int awayScoreOt
-) {}
+        int awayScoreOt,
+        List<GoalEventRequest> goals
+) {
+    public MatchResultRequest {
+        if (goals == null) {
+            goals = List.of();
+        }
+    }
+}
