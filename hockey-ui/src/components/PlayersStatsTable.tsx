@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { API_BASE_URL, LEAGUE_CONFIG } from '../constants/api'
+
+export type PlayerStatsPhase = 'REGULAR_SEASON' | 'PLAYOFF'
 
 export interface PlayerStatsRow {
   playerId: number
@@ -13,18 +15,20 @@ export interface PlayerStatsRow {
 }
 
 interface PlayersStatsTableProps {
-  refreshKey?: number
+  competitionType: PlayerStatsPhase
 }
 
-const PlayersStatsTable: React.FC<PlayersStatsTableProps> = ({ refreshKey = 0 }) => {
+const PlayersStatsTable: React.FC<PlayersStatsTableProps> = ({ competitionType }) => {
   const [rows, setRows] = useState<PlayerStatsRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadStats = useCallback(() => {
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ seasonYear: LEAGUE_CONFIG.seasonYear })
+  useEffect(() => {
+    let cancelled = false
+    const params = new URLSearchParams({
+      seasonYear: LEAGUE_CONFIG.seasonYear,
+      competitionType,
+    })
 
     fetch(`${API_BASE_URL}/players/stats?${params}`)
       .then((res) => {
@@ -34,18 +38,22 @@ const PlayersStatsTable: React.FC<PlayersStatsTableProps> = ({ refreshKey = 0 })
         return res.json()
       })
       .then((data: PlayerStatsRow[]) => {
+        if (cancelled) return
         setRows(data)
+        setError(null)
+        setLoading(false)
       })
       .catch((err) => {
+        if (cancelled) return
         console.error('Error loading player stats:', err)
         setError(err instanceof Error ? err.message : 'Could not load player stats.')
+        setLoading(false)
       })
-      .finally(() => setLoading(false))
-  }, [])
 
-  useEffect(() => {
-    loadStats()
-  }, [loadStats, refreshKey])
+    return () => {
+      cancelled = true
+    }
+  }, [competitionType])
 
   if (loading) {
     return <p className="players-stats__empty">Loading player stats…</p>
@@ -56,7 +64,13 @@ const PlayersStatsTable: React.FC<PlayersStatsTableProps> = ({ refreshKey = 0 })
   }
 
   if (rows.length === 0) {
-    return <p className="players-stats__empty">No players registered yet.</p>
+    return (
+      <p className="players-stats__empty">
+        {competitionType === 'PLAYOFF'
+          ? 'No playoff teams yet — start the playoffs to see these stats.'
+          : 'No players registered yet.'}
+      </p>
+    )
   }
 
   return (

@@ -109,11 +109,12 @@ public class GoalEventService {
                     "Team " + team.getShortName() + " has no players to assign goals.");
         }
 
+        boolean[] unassisted = pickUnassistedFlags(goalCount);
         List<GoalEventRequest> events = new ArrayList<>();
         for (int i = 0; i < goalCount; i++) {
             Player scorer = players.get(ThreadLocalRandom.current().nextInt(players.size()));
             Player assist = null;
-            if (players.size() > 1) {
+            if (!unassisted[i] && players.size() > 1) {
                 List<Player> others = new ArrayList<>(players);
                 others.remove(scorer);
                 assist = others.get(ThreadLocalRandom.current().nextInt(others.size()));
@@ -127,6 +128,41 @@ public class GoalEventService {
                     minute));
         }
         return events;
+    }
+
+    static int countUnassistedGoals(int goalCount) {
+        if (goalCount <= 0) {
+            return 0;
+        }
+        if (goalCount == 1) {
+            return ThreadLocalRandom.current().nextDouble() < 0.3 ? 1 : 0;
+        }
+        if (goalCount == 3 || goalCount == 4) {
+            return 1;
+        }
+        if (goalCount == 6 || goalCount == 7 || goalCount == 8) {
+            return 2;
+        }
+        return (int) Math.round(goalCount * 0.3);
+    }
+
+    private static boolean[] pickUnassistedFlags(int goalCount) {
+        boolean[] flags = new boolean[goalCount];
+        int unassisted = Math.min(goalCount, countUnassistedGoals(goalCount));
+        List<Integer> indexes = new ArrayList<>(goalCount);
+        for (int i = 0; i < goalCount; i++) {
+            indexes.add(i);
+        }
+        for (int i = indexes.size() - 1; i > 0; i--) {
+            int j = ThreadLocalRandom.current().nextInt(i + 1);
+            int tmp = indexes.get(i);
+            indexes.set(i, indexes.get(j));
+            indexes.set(j, tmp);
+        }
+        for (int i = 0; i < unassisted; i++) {
+            flags[indexes.get(i)] = true;
+        }
+        return flags;
     }
 
     private List<Player> loadPlayers(Team team) {

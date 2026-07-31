@@ -580,8 +580,15 @@
   align-items: stretch;
 }
 
+.players-stats-toggle__buttons {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .players-stats-toggle__button {
-  align-self: flex-start;
   padding: 10px 16px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -589,6 +596,12 @@
   color: var(--text-h);
   font-weight: 700;
   cursor: pointer;
+}
+
+.players-stats-toggle__button--active {
+  border-color: var(--green-border);
+  background: var(--green-bg);
+  color: var(--green-bright);
 }
 
 .players-stats {

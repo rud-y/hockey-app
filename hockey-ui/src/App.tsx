@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import './App.css'
 import FixturesPanel from './components/FixturesPanel'
 import LeagueTable from './components/LeagueTable'
-import PlayersStatsTable from './components/PlayersStatsTable'
+import PlayersStatsTable, { type PlayerStatsPhase } from './components/PlayersStatsTable'
 import PlayoffsPanel from './components/PlayoffsPanel'
 import TeamForm from './components/TeamForm'
 import { API_BASE_URL, LEAGUE_CONFIG } from './constants/api'
@@ -14,7 +14,7 @@ function App() {
   const [standings, setStandings] = useState<TableRowProps[]>([])
   const [fixturesData, setFixturesData] = useState<FixturesResponseProps | null>(null)
   const [playoffs, setPlayoffs] = useState<PlayoffBracketProps | null>(null)
-  const [showPlayerStats, setShowPlayerStats] = useState(false)
+  const [playerStatsPhase, setPlayerStatsPhase] = useState<PlayerStatsPhase | null>(null)
   const [playerStatsKey, setPlayerStatsKey] = useState(0)
 
   const loadStandings = useCallback(() => {
@@ -108,7 +108,7 @@ function App() {
   const handleStartFromScratch = useCallback(() => {
     setPlayoffs(null)
     setFixturesData(null)
-    setShowPlayerStats(false)
+    setPlayerStatsPhase(null)
     loadStandings()
     loadFixtures()
     loadPlayoffs()
@@ -164,15 +164,40 @@ function App() {
           onPlayoffsStarted={loadPlayoffs}
         />
         <div className="players-stats-toggle">
-          <button
-            type="button"
-            className="players-stats-toggle__button"
-            onClick={() => setShowPlayerStats((open) => !open)}
-            aria-expanded={showPlayerStats}
-          >
-            {showPlayerStats ? 'Hide Players stats table' : 'Players stats table'}
-          </button>
-          {showPlayerStats && <PlayersStatsTable refreshKey={playerStatsKey} />}
+          <div className="players-stats-toggle__buttons">
+            <button
+              type="button"
+              className={`players-stats-toggle__button${
+                playerStatsPhase === 'REGULAR_SEASON' ? ' players-stats-toggle__button--active' : ''
+              }`}
+              onClick={() =>
+                setPlayerStatsPhase((phase) =>
+                  phase === 'REGULAR_SEASON' ? null : 'REGULAR_SEASON',
+                )
+              }
+              aria-pressed={playerStatsPhase === 'REGULAR_SEASON'}
+            >
+              Regular season players stats
+            </button>
+            <button
+              type="button"
+              className={`players-stats-toggle__button${
+                playerStatsPhase === 'PLAYOFF' ? ' players-stats-toggle__button--active' : ''
+              }`}
+              onClick={() =>
+                setPlayerStatsPhase((phase) => (phase === 'PLAYOFF' ? null : 'PLAYOFF'))
+              }
+              aria-pressed={playerStatsPhase === 'PLAYOFF'}
+            >
+              Playoff players stats
+            </button>
+          </div>
+          {playerStatsPhase && (
+            <PlayersStatsTable
+              key={`${playerStatsPhase}-${playerStatsKey}`}
+              competitionType={playerStatsPhase}
+            />
+          )}
         </div>
         {playoffs && (
           <PlayoffsPanel

@@ -1,6 +1,7 @@
 package com.rz.hockey.controllers;
 
 import com.rz.hockey.dto.PlayerStatsResponse;
+import com.rz.hockey.enums.CompetitionType;
 import com.rz.hockey.services.PlayerStatsService;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +23,9 @@ public class PlayerController {
     }
 
     @GetMapping("/stats")
-    public List<PlayerStatsResponse> getPlayerStats(@RequestParam String seasonYear) {
-        return playerStatsService.getSeasonPlayerStats(seasonYear);
+    public List<PlayerStatsResponse> getPlayerStats(
+            @RequestParam String seasonYear,
+            @RequestParam CompetitionType competitionType) {
+        return playerStatsService.getSeasonPlayerStats(seasonYear, competitionType);
     }
 }

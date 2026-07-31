@@ -42,6 +42,25 @@ export const shortPlayerName = (name: string) => {
 const pickRandom = <T,>(items: T[]): T =>
   items[Math.floor(Math.random() * items.length)]
 
+/** About 30% unassisted: 3–4 goals → 1; 6–8 goals → 2; otherwise round(goalCount * 0.3). */
+export const countUnassistedGoals = (goalCount: number): number => {
+  if (goalCount <= 0) return 0
+  if (goalCount === 1) return Math.random() < 0.3 ? 1 : 0
+  if (goalCount === 3 || goalCount === 4) return 1
+  if (goalCount === 6 || goalCount === 7 || goalCount === 8) return 2
+  return Math.round(goalCount * 0.3)
+}
+
+const pickUnassistedIndexes = (goalCount: number): Set<number> => {
+  const count = Math.min(goalCount, countUnassistedGoals(goalCount))
+  const indexes = Array.from({ length: goalCount }, (_, i) => i)
+  for (let i = indexes.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[indexes[i], indexes[j]] = [indexes[j], indexes[i]]
+  }
+  return new Set(indexes.slice(0, count))
+}
+
 export const assignPeriodGoals = (
   team: TeamProps,
   goalCount: number,
@@ -56,11 +75,13 @@ export const assignPeriodGoals = (
     return []
   }
 
+  const unassistedIndexes = pickUnassistedIndexes(goalCount)
   const events: GoalEventPayload[] = []
   for (let i = 0; i < goalCount; i += 1) {
     const scorer = pickRandom(players)
     const others = players.filter((player) => player.id !== scorer.id)
-    const assist = others.length > 0 ? pickRandom(others) : null
+    const assist =
+      unassistedIndexes.has(i) || others.length === 0 ? null : pickRandom(others)
     events.push({
       period,
       teamId: team.id,
@@ -78,8 +99,8 @@ export const formatGoalLine = (
   assistName?: string | null,
 ) =>
   assistName
-    ? `${teamShortName} - ${shortPlayerName(scorerName)} / ${shortPlayerName(assistName)}`
-    : `${teamShortName} - ${shortPlayerName(scorerName)}`
+    ? `${teamShortName} .${shortPlayerName(scorerName)} .${shortPlayerName(assistName)}`
+    : `${teamShortName} .${shortPlayerName(scorerName)}`
 
 export const resolveGoalDisplay = (
   event: GoalEventPayload,
