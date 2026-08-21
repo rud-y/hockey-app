@@ -18,6 +18,9 @@ import {
 } from '../utils/goalEvents'
 import {
   BREAK_DURATION_SECONDS,
+  MAX_GOALS_PERIOD_1,
+  MAX_GOALS_PERIOD_2,
+  MAX_GOALS_PERIOD_3,
   PERIOD_DURATION_SECONDS,
   randomOvertimeScore,
   randomPeriodScore,
@@ -274,8 +277,8 @@ const MatchCard: React.FC<MatchCardProps> = ({
     handledTickRef.current = tickKey
 
     if (phase === 'period1') {
-      const homeScore = randomPeriodScore()
-      const awayScore = randomPeriodScore()
+      const homeScore = randomPeriodScore(MAX_GOALS_PERIOD_1)
+      const awayScore = randomPeriodScore(MAX_GOALS_PERIOD_1)
       setScores((current) => ({
         ...current,
         home: [homeScore, current.home[1], current.home[2]],
@@ -294,8 +297,8 @@ const MatchCard: React.FC<MatchCardProps> = ({
     }
 
     if (phase === 'period2') {
-      const homeScore = randomPeriodScore()
-      const awayScore = randomPeriodScore()
+      const homeScore = randomPeriodScore(MAX_GOALS_PERIOD_2)
+      const awayScore = randomPeriodScore(MAX_GOALS_PERIOD_2)
       setScores((current) => ({
         ...current,
         home: [current.home[0], homeScore, current.home[2]],
@@ -314,8 +317,8 @@ const MatchCard: React.FC<MatchCardProps> = ({
     }
 
     if (phase === 'period3') {
-      const homeScore = randomPeriodScore()
-      const awayScore = randomPeriodScore()
+      const homeScore = randomPeriodScore(MAX_GOALS_PERIOD_3)
+      const awayScore = randomPeriodScore(MAX_GOALS_PERIOD_3)
       const nextHome: [number, number, number] = [
         scores.home[0],
         scores.home[1],

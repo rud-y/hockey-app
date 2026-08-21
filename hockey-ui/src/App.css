@@ -886,6 +886,10 @@
   font-size: 0.85rem;
 }
 
+.playoff-series-card__results li {
+  line-height: 1.45;
+}
+
 .playoff-series-card__next {
   display: flex;
   flex-direction: column;

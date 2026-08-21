@@ -74,12 +74,12 @@ public class MatchService {
     }
 
     public static void validateMatchScores(MatchResultRequest request) {
-        validatePeriodScore(request.homeScorePeriod1());
-        validatePeriodScore(request.awayScorePeriod1());
-        validatePeriodScore(request.homeScorePeriod2());
-        validatePeriodScore(request.awayScorePeriod2());
-        validatePeriodScore(request.homeScorePeriod3());
-        validatePeriodScore(request.awayScorePeriod3());
+        validatePeriodScore(request.homeScorePeriod1(), 1, 3);
+        validatePeriodScore(request.awayScorePeriod1(), 1, 3);
+        validatePeriodScore(request.homeScorePeriod2(), 2, 2);
+        validatePeriodScore(request.awayScorePeriod2(), 2, 2);
+        validatePeriodScore(request.homeScorePeriod3(), 3, 4);
+        validatePeriodScore(request.awayScorePeriod3(), 3, 4);
 
         int homeRegulation = request.homeScorePeriod1() + request.homeScorePeriod2() + request.homeScorePeriod3();
         int awayRegulation = request.awayScorePeriod1() + request.awayScorePeriod2() + request.awayScorePeriod3();
@@ -98,10 +98,11 @@ public class MatchService {
         }
     }
 
-    private static void validatePeriodScore(int score) {
-        if (score < 0 || score > 3) {
+    private static void validatePeriodScore(int score, int period, int maxGoals) {
+        if (score < 0 || score > maxGoals) {
             throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST, "Period scores must be between 0 and 3.");
+                    HttpStatus.BAD_REQUEST,
+                    "Period " + period + " scores must be between 0 and " + maxGoals + ".");
         }
     }
 

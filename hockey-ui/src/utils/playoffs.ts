@@ -60,3 +60,28 @@ export function gameTotalScore(game: {
     game.awayScoreOt
   return { home, away }
 }
+
+export function formatPlayoffGameResult(game: {
+  gameNumber: number
+  homeTeam: { shortName: string }
+  awayTeam: { shortName: string }
+  homeScorePeriod1: number
+  awayScorePeriod1: number
+  homeScorePeriod2: number
+  awayScorePeriod2: number
+  homeScorePeriod3: number
+  awayScorePeriod3: number
+  homeScoreOt: number
+  awayScoreOt: number
+}): string {
+  const totals = gameTotalScore(game)
+  const periods = [
+    `${game.homeScorePeriod1}-${game.awayScorePeriod1}`,
+    `${game.homeScorePeriod2}-${game.awayScorePeriod2}`,
+    `${game.homeScorePeriod3}-${game.awayScorePeriod3}`,
+  ]
+  if (game.homeScoreOt > 0 || game.awayScoreOt > 0) {
+    periods.push(`OT ${game.homeScoreOt}-${game.awayScoreOt}`)
+  }
+  return `Game ${game.gameNumber}: ${game.homeTeam.shortName} ${totals.home} - ${totals.away} ${game.awayTeam.shortName} ( ${periods.join(', ')} )`
+}

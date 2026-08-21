@@ -3,7 +3,7 @@ import {
   type PlayoffBracketProps,
   type PlayoffSeriesProps,
 } from '../interfaces/playoffProps'
-import { gameTotalScore } from '../utils/playoffs'
+import { formatPlayoffGameResult } from '../utils/playoffs'
 import MatchCard from './MatchCard'
 
 interface PlayoffSeriesCardProps {
@@ -61,15 +61,9 @@ const PlayoffSeriesCard: React.FC<PlayoffSeriesCardProps> = ({
 
       {completedGames.length > 0 && (
         <ul className="playoff-series-card__results">
-          {[...completedGames].reverse().map((game) => {
-            const totals = gameTotalScore(game)
-            return (
-              <li key={game.id}>
-                Game {game.gameNumber}: {game.homeTeam.shortName} {totals.home}–{totals.away}{' '}
-                {game.awayTeam.shortName}
-              </li>
-            )
-          })}
+          {[...completedGames].reverse().map((game) => (
+            <li key={game.id}>{formatPlayoffGameResult(game)}</li>
+          ))}
         </ul>
       )}
 
