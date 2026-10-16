@@ -15,13 +15,15 @@ import {
   resolveGoalDisplay,
   type GoalEventPayload,
   type GoalEventProps,
+  type GoalPeriod,
 } from '../utils/goalEvents'
 import {
   BREAK_DURATION_SECONDS,
+  GOAL_REVEAL_SECONDS,
+  PERIOD_END_HOLD_SECONDS,
   MAX_GOALS_PERIOD_1,
   MAX_GOALS_PERIOD_2,
   MAX_GOALS_PERIOD_3,
-  PERIOD_DURATION_SECONDS,
   randomOvertimeScore,
   randomPeriodScore,
   sumScores,
@@ -79,12 +81,50 @@ const activePeriodSlot = (phase: MatchPhase): PeriodSlot => {
   return null
 }
 
-const isPeriodInProgress = (phase: MatchPhase, slot: PeriodSlot) => {
-  if (slot === '1P') return phase === 'period1'
-  if (slot === '2P') return phase === 'period2'
+const isPeriodHighlighted = (phase: MatchPhase, slot: PeriodSlot) => {
+  if (slot === '1P') return phase === 'period1' || phase === 'break1'
+  if (slot === '2P') return phase === 'period2' || phase === 'break2'
   if (slot === '3P') return phase === 'period3'
   if (slot === 'OT') return phase === 'overtime'
   return false
+}
+
+const isScoringPhase = (phase: MatchPhase) =>
+  phase === 'period1' || phase === 'period2' || phase === 'period3' || phase === 'overtime'
+
+const phaseForSlot = (slot: '1P' | '2P' | '3P' | 'OT'): MatchPhase => {
+  if (slot === '1P') return 'period1'
+  if (slot === '2P') return 'period2'
+  if (slot === '3P') return 'period3'
+  return 'overtime'
+}
+
+const endOfPeriodMessage = (phase: MatchPhase) => {
+  if (phase === 'period1') return 'End of 1st period'
+  if (phase === 'period2') return 'End of 2nd period'
+  if (phase === 'period3') return 'End of 3rd period'
+  return 'End of overtime'
+}
+
+const incrementScore = (
+  current: PeriodScores,
+  period: GoalPeriod,
+  isHome: boolean,
+): PeriodScores => {
+  if (period === 'OVERTIME') {
+    return {
+      ...current,
+      otHome: current.otHome + (isHome ? 1 : 0),
+      otAway: current.otAway + (isHome ? 0 : 1),
+    }
+  }
+
+  const index = period === 'FIRST' ? 0 : period === 'SECOND' ? 1 : 2
+  const home: [number, number, number] = [current.home[0], current.home[1], current.home[2]]
+  const away: [number, number, number] = [current.away[0], current.away[1], current.away[2]]
+  if (isHome) home[index] += 1
+  else away[index] += 1
+  return { ...current, home, away }
 }
 
 const MatchCard: React.FC<MatchCardProps> = ({
@@ -115,11 +155,17 @@ const MatchCard: React.FC<MatchCardProps> = ({
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [goalEvents, setGoalEvents] = useState<GoalEventPayload[]>(() => goalsFromMatch(match))
+  const [scoreFlash, setScoreFlash] = useState<'home' | 'away' | null>(null)
+  const [flashKey, setFlashKey] = useState(0)
   const handledTickRef = useRef<string | null>(null)
   const hasSubmittedRef = useRef(match.completed)
   const scoresRef = useRef(scores)
   const goalsRef = useRef(goalEvents)
   const playoffDelayRef = useRef<number | null>(null)
+  const goalQueueRef = useRef<GoalEventPayload[]>([])
+  const concludedPhaseRef = useRef<MatchPhase | null>(null)
+  const applyGoalRef = useRef<(goal: GoalEventPayload) => void>(() => {})
+  const concludePeriodRef = useRef<(endedPhase: MatchPhase) => void>(() => {})
 
   useEffect(() => {
     scoresRef.current = scores
@@ -165,7 +211,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
   const breakRunning = phase === 'break1' || phase === 'break2' || phase === 'break3'
   const isLive = playable && !isFinished && (periodRunning || breakRunning || isSubmitting)
   const timerSlot = activePeriodSlot(phase)
-  const showTimer = (periodRunning || breakRunning) && secondsLeft >= 0 && timerSlot != null
+  const showTimer = breakRunning && secondsLeft > 0 && timerSlot != null
 
   const homeWon = isFinished && homeTotal > awayTotal
   const awayWon = isFinished && awayTotal > homeTotal
@@ -237,20 +283,95 @@ const MatchCard: React.FC<MatchCardProps> = ({
     [submitResult],
   )
 
+  const beginPeriod = useCallback((slot: '1P' | '2P' | '3P' | 'OT') => {
+    const period = periodSlotToApi(slot)
+    let homeCount = 0
+    let awayCount = 0
+    if (slot === 'OT') {
+      const overtime = randomOvertimeScore()
+      homeCount = overtime.home
+      awayCount = overtime.away
+    } else if (slot === '1P') {
+      homeCount = randomPeriodScore(MAX_GOALS_PERIOD_1)
+      awayCount = randomPeriodScore(MAX_GOALS_PERIOD_1)
+    } else if (slot === '2P') {
+      homeCount = randomPeriodScore(MAX_GOALS_PERIOD_2)
+      awayCount = randomPeriodScore(MAX_GOALS_PERIOD_2)
+    } else {
+      homeCount = randomPeriodScore(MAX_GOALS_PERIOD_3)
+      awayCount = randomPeriodScore(MAX_GOALS_PERIOD_3)
+    }
+
+    goalQueueRef.current = [
+      ...assignPeriodGoals(match.homeTeam, homeCount, period),
+      ...assignPeriodGoals(match.awayTeam, awayCount, period),
+    ].sort((a, b) => a.minute - b.minute || a.teamId - b.teamId)
+
+    concludedPhaseRef.current = null
+    handledTickRef.current = null
+    setScoreFlash(null)
+    setStatusMessage(null)
+    setPhase(phaseForSlot(slot))
+  }, [match.homeTeam, match.awayTeam])
+
   const startMatch = () => {
     setAutoPlay(true)
     setAwaitingOvertime(false)
-    setStatusMessage(null)
-    setPhase('period1')
-    setSecondsLeft(PERIOD_DURATION_SECONDS)
+    beginPeriod('1P')
   }
 
   const playOvertime = () => {
-    handledTickRef.current = null
     setAutoPlay(false)
-    setStatusMessage(null)
-    setPhase('overtime')
-    setSecondsLeft(PERIOD_DURATION_SECONDS)
+    setAwaitingOvertime(false)
+    beginPeriod('OT')
+  }
+
+  applyGoalRef.current = (goal: GoalEventPayload) => {
+    const isHome = goal.teamId === match.homeTeam.id
+    const nextScores = incrementScore(scoresRef.current, goal.period, isHome)
+    scoresRef.current = nextScores
+    setScores(nextScores)
+
+    const nextGoals = [...goalsRef.current, goal]
+    goalsRef.current = nextGoals
+    setGoalEvents(nextGoals)
+
+    setScoreFlash(isHome ? 'home' : 'away')
+    setFlashKey((current) => current + 1)
+  }
+
+  concludePeriodRef.current = (endedPhase: MatchPhase) => {
+    if (concludedPhaseRef.current === endedPhase) return
+    concludedPhaseRef.current = endedPhase
+
+    if (endedPhase === 'period1' || endedPhase === 'period2') {
+      setCompletedPeriods((current) =>
+        endedPhase === 'period1' ? [true, current[1], current[2]] : [current[0], true, current[2]],
+      )
+      setStatusMessage(endOfPeriodMessage(endedPhase))
+      setPhase(endedPhase === 'period1' ? 'break1' : 'break2')
+      setSecondsLeft(BREAK_DURATION_SECONDS)
+      return
+    }
+
+    if (endedPhase === 'period3') {
+      setCompletedPeriods([true, true, true])
+      const nextScores = scoresRef.current
+      if (sumScores(nextScores.home) === sumScores(nextScores.away)) {
+        setAutoPlay(false)
+        setAwaitingOvertime(true)
+        setStatusMessage('End of 3rd period. Play overtime to decide the winner')
+        setPhase('ready')
+        return
+      }
+      setStatusMessage('End of 3rd period')
+      finishMatch(nextScores)
+      return
+    }
+
+    if (endedPhase === 'overtime') {
+      finishMatch(scoresRef.current)
+    }
   }
 
   useEffect(() => {
@@ -258,144 +379,61 @@ const MatchCard: React.FC<MatchCardProps> = ({
       return
     }
 
-    const timer = window.setInterval(() => {
+    const timer = window.setTimeout(() => {
       setSecondsLeft((current) => current - 1)
     }, 1000)
 
-    return () => window.clearInterval(timer)
+    return () => window.clearTimeout(timer)
   }, [secondsLeft])
 
   useEffect(() => {
-    if (secondsLeft > 0) {
-      return
+    if (!isScoringPhase(phase)) return
+
+    let cancelled = false
+    const timeouts: number[] = []
+    const goals = goalQueueRef.current.slice()
+    const stepMs = GOAL_REVEAL_SECONDS * 1000
+    const periodMs = (goals.length * GOAL_REVEAL_SECONDS + PERIOD_END_HOLD_SECONDS) * 1000
+
+    goals.forEach((goal, index) => {
+      timeouts.push(
+        window.setTimeout(() => {
+          if (cancelled) return
+          applyGoalRef.current(goal)
+        }, stepMs * (index + 1)),
+      )
+    })
+
+    timeouts.push(
+      window.setTimeout(() => {
+        if (cancelled) return
+        concludePeriodRef.current(phase)
+      }, periodMs),
+    )
+
+    return () => {
+      cancelled = true
+      timeouts.forEach((timeoutId) => window.clearTimeout(timeoutId))
     }
+  }, [phase])
+
+  useEffect(() => {
+    if (phase !== 'break1' && phase !== 'break2') return
+    if (secondsLeft > 0) return
 
     const tickKey = `${phase}:0`
-    if (handledTickRef.current === tickKey) {
-      return
-    }
+    if (handledTickRef.current === tickKey) return
     handledTickRef.current = tickKey
 
-    if (phase === 'period1') {
-      const homeScore = randomPeriodScore(MAX_GOALS_PERIOD_1)
-      const awayScore = randomPeriodScore(MAX_GOALS_PERIOD_1)
-      setScores((current) => ({
-        ...current,
-        home: [homeScore, current.home[1], current.home[2]],
-        away: [awayScore, current.away[1], current.away[2]],
-      }))
-      const periodGoals = [
-        ...assignPeriodGoals(match.homeTeam, homeScore, periodSlotToApi('1P')),
-        ...assignPeriodGoals(match.awayTeam, awayScore, periodSlotToApi('1P')),
-      ]
-      setGoalEvents((current) => [...current, ...periodGoals])
-      setCompletedPeriods((current) => [true, current[1], current[2]])
-      setStatusMessage('Break time')
-      setPhase('break1')
-      setSecondsLeft(BREAK_DURATION_SECONDS)
-      return
-    }
-
-    if (phase === 'period2') {
-      const homeScore = randomPeriodScore(MAX_GOALS_PERIOD_2)
-      const awayScore = randomPeriodScore(MAX_GOALS_PERIOD_2)
-      setScores((current) => ({
-        ...current,
-        home: [current.home[0], homeScore, current.home[2]],
-        away: [current.away[0], awayScore, current.away[2]],
-      }))
-      const periodGoals = [
-        ...assignPeriodGoals(match.homeTeam, homeScore, periodSlotToApi('2P')),
-        ...assignPeriodGoals(match.awayTeam, awayScore, periodSlotToApi('2P')),
-      ]
-      setGoalEvents((current) => [...current, ...periodGoals])
-      setCompletedPeriods((current) => [current[0], true, current[2]])
-      setStatusMessage('Break time')
-      setPhase('break2')
-      setSecondsLeft(BREAK_DURATION_SECONDS)
-      return
-    }
-
-    if (phase === 'period3') {
-      const homeScore = randomPeriodScore(MAX_GOALS_PERIOD_3)
-      const awayScore = randomPeriodScore(MAX_GOALS_PERIOD_3)
-      const nextHome: [number, number, number] = [
-        scores.home[0],
-        scores.home[1],
-        homeScore,
-      ]
-      const nextAway: [number, number, number] = [
-        scores.away[0],
-        scores.away[1],
-        awayScore,
-      ]
-      const nextScores: PeriodScores = {
-        ...scores,
-        home: nextHome,
-        away: nextAway,
-      }
-
-      setScores(nextScores)
-      const periodGoals = [
-        ...assignPeriodGoals(match.homeTeam, homeScore, periodSlotToApi('3P')),
-        ...assignPeriodGoals(match.awayTeam, awayScore, periodSlotToApi('3P')),
-      ]
-      setGoalEvents((current) => [...current, ...periodGoals])
-      goalsRef.current = [...goalsRef.current, ...periodGoals]
-      setCompletedPeriods([true, true, true])
-
-      if (sumScores(nextHome) === sumScores(nextAway)) {
-        setAutoPlay(false)
-        setAwaitingOvertime(true)
-        setStatusMessage('Play overtime to decide the winner')
-        setPhase('ready')
-      } else {
-        finishMatch(nextScores)
-      }
-      return
-    }
-
-    if (phase === 'overtime') {
-      const otScore = randomOvertimeScore()
-      const nextScores: PeriodScores = {
-        ...scoresRef.current,
-        otHome: otScore.home,
-        otAway: otScore.away,
-      }
-
-      setScores(nextScores)
-      const periodGoals = [
-        ...assignPeriodGoals(match.homeTeam, otScore.home, periodSlotToApi('OT')),
-        ...assignPeriodGoals(match.awayTeam, otScore.away, periodSlotToApi('OT')),
-      ]
-      setGoalEvents((current) => [...current, ...periodGoals])
-      goalsRef.current = [...goalsRef.current, ...periodGoals]
-      finishMatch(nextScores)
-      return
-    }
-
     if (phase === 'break1') {
-      setStatusMessage(null)
-      if (autoPlay) {
-        setPhase('period2')
-        setSecondsLeft(PERIOD_DURATION_SECONDS)
-      } else {
-        setPhase('ready')
-      }
+      if (autoPlay) beginPeriod('2P')
+      else setPhase('ready')
       return
     }
 
-    if (phase === 'break2') {
-      setStatusMessage(null)
-      if (autoPlay) {
-        setPhase('period3')
-        setSecondsLeft(PERIOD_DURATION_SECONDS)
-      } else {
-        setPhase('ready')
-      }
-      return
-    }
-  }, [phase, secondsLeft, finishMatch, autoPlay, scores, match.homeTeam, match.awayTeam])
+    if (autoPlay) beginPeriod('3P')
+    else setPhase('ready')
+  }, [phase, secondsLeft, autoPlay, beginPeriod])
 
   const canStartMatch =
     playable &&
@@ -420,7 +458,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
 
   const renderPeriodBox = (slot: PeriodSlot, label: string, scoreText: string) => {
     if (!slot) return null
-    const inProgress = isPeriodInProgress(phase, slot)
+    const highlighted = isPeriodHighlighted(phase, slot)
     const timerHere = showTimer && timerSlot === slot
 
     const goalLines: string[] =
@@ -435,7 +473,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
     return (
       <div className="match-period">
         <div
-          className={`match-period__box${inProgress ? ' match-period__box--active' : ''}`}
+          className={`match-period__box${highlighted ? ' match-period__box--active' : ''}`}
           style={styles.scoreColumn}
         >
           <span style={styles.scoreLabel}>{label}</span>
@@ -447,7 +485,16 @@ const MatchCard: React.FC<MatchCardProps> = ({
         {goalLines.length > 0 && (
           <div className="match-period__goals">
             {goalLines.map((line, index) => (
-              <div key={`${slot}-${index}`}>{line}</div>
+              <div
+                key={`${slot}-${index}`}
+                className={
+                  highlighted && index === goalLines.length - 1
+                    ? 'match-period__goal--latest'
+                    : undefined
+                }
+              >
+                {line}
+              </div>
             ))}
           </div>
         )}
@@ -481,9 +528,29 @@ const MatchCard: React.FC<MatchCardProps> = ({
 
       <div style={styles.scoreLine}>
         <span style={styles.shortName}>{match.homeTeam.shortName}</span>
-        <span style={styles.scoreValue}>{homeTotal}</span>
+        <span
+          key={scoreFlash === 'home' ? `home-${flashKey}` : 'home-score'}
+          className={
+            scoreFlash === 'home'
+              ? 'match-score-value match-score-value--tick'
+              : 'match-score-value'
+          }
+          style={styles.scoreValue}
+        >
+          {homeTotal}
+        </span>
         <span style={styles.scoreDash}>-</span>
-        <span style={styles.scoreValue}>{awayTotal}</span>
+        <span
+          key={scoreFlash === 'away' ? `away-${flashKey}` : 'away-score'}
+          className={
+            scoreFlash === 'away'
+              ? 'match-score-value match-score-value--tick'
+              : 'match-score-value'
+          }
+          style={styles.scoreValue}
+        >
+          {awayTotal}
+        </span>
         <span style={styles.shortName}>{match.awayTeam.shortName}</span>
       </div>
 
@@ -491,23 +558,35 @@ const MatchCard: React.FC<MatchCardProps> = ({
         {renderPeriodBox(
           '1P',
           '1P',
-          formatPeriodScore(scores.home[0], scores.away[0], completedPeriods[0]),
+          formatPeriodScore(
+            scores.home[0],
+            scores.away[0],
+            completedPeriods[0] || phase === 'period1' || phase === 'break1',
+          ),
         )}
         {renderPeriodBox(
           '2P',
           '2P',
-          formatPeriodScore(scores.home[1], scores.away[1], completedPeriods[1]),
+          formatPeriodScore(
+            scores.home[1],
+            scores.away[1],
+            completedPeriods[1] || phase === 'period2' || phase === 'break2',
+          ),
         )}
         {renderPeriodBox(
           '3P',
           '3P',
-          formatPeriodScore(scores.home[2], scores.away[2], completedPeriods[2]),
+          formatPeriodScore(
+            scores.home[2],
+            scores.away[2],
+            completedPeriods[2] || phase === 'period3',
+          ),
         )}
         {showOvertime &&
           renderPeriodBox(
             'OT',
             'OT',
-            scores.otHome > 0 || scores.otAway > 0 || match.completed
+            phase === 'overtime' || scores.otHome > 0 || scores.otAway > 0 || match.completed
               ? `${scores.otHome}:${scores.otAway}`
               : '-',
           )}

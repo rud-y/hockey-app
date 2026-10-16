@@ -1,6 +1,10 @@
 export const MAX_TEAMS = 32
 export const ALLOWED_TEAM_COUNTS = [4, 8, 16, 32] as const
-export const PERIOD_DURATION_SECONDS = 3
+/** How long each goal stays on the score before the next one. */
+export const GOAL_REVEAL_SECONDS = 1
+/** Extra second after the last goal, so that score can be read before the break. */
+export const PERIOD_END_HOLD_SECONDS = 1
+/** Intermission between periods. */
 export const BREAK_DURATION_SECONDS = 2
 
 export const MAX_GOALS_PERIOD_1 = 3

@@ -571,6 +571,28 @@
   list-style: none;
 }
 
+.match-period__goal--latest {
+  color: var(--text-h);
+  font-weight: 700;
+}
+
+.match-score-value {
+  display: inline-block;
+}
+
+.match-score-value--tick {
+  animation: match-score-tick 0.4s ease;
+}
+
+@keyframes match-score-tick {
+  0% {
+    transform: scale(1.45);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .players-stats-toggle {
   width: 100%;
   max-width: 900px;
